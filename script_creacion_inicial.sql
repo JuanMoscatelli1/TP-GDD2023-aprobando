@@ -55,15 +55,6 @@ BEGIN
 		descripcion NVARCHAR(50)
 	);
 
-	CREATE TABLE [APROBANDO].[informacion_personal](
-		info_codigo INTEGER IDENTITY(1,1) PRIMARY KEY,
-		telefono DECIMAL(18,0),
-		mail NVARCHAR(255),
-		fecha_de_nacimiento DATE,
-		dni DECIMAL(18,0),
-		nombre NVARCHAR(255),
-		apellido NVARCHAR(255)
-	);
 
 	CREATE TABLE [APROBANDO].[tipo_local] (
 		tipo_local_codigo INTEGER IDENTITY(1,1) PRIMARY KEY,
@@ -101,7 +92,12 @@ BEGIN
 
 	CREATE TABLE [APROBANDO].[usuario] (
 		usuario_codigo INTEGER IDENTITY(1,1) PRIMARY KEY,
-		info_codigo INTEGER REFERENCES [APROBANDO].[informacion_personal],
+		telefono DECIMAL(18,0),
+		mail NVARCHAR(255),
+		fecha_de_nacimiento DATE,
+		dni DECIMAL(18,0),
+		nombre NVARCHAR(255),
+		apellido NVARCHAR(255),
 		fecha_de_registro DATETIME2(3)
 	);
 
@@ -214,7 +210,7 @@ CREATE TABLE [APROBANDO].[direccion_por_usuario](
 
 CREATE TABLE [APROBANDO].[operador](
 		operador_codigo INTEGER IDENTITY(1,1) PRIMARY KEY,
-		info_codigo INTEGER REFERENCES [APROBANDO].[informacion_personal],
+		usuario_codigo INTEGER REFERENCES [APROBANDO].[usuario],
 );
 
 	CREATE TABLE [APROBANDO].[cupon](
@@ -255,7 +251,7 @@ CREATE TABLE [APROBANDO].[estado_de_reclamo](
 
 CREATE TABLE [APROBANDO].[repartidor](
 		repartidor_codigo INTEGER IDENTITY(1,1) PRIMARY KEY,
-		info_codigo INTEGER REFERENCES [APROBANDO].[informacion_personal],
+		usuario_codigo INTEGER REFERENCES [APROBANDO].[usuario],
 		movilidad INTEGER REFERENCES [APROBANDO].[tipo_movilidad]
 	);
 
@@ -416,28 +412,25 @@ BEGIN
 	ON ENVIO_MENSAJERIA_LOCALIDAD = localidad
 	WHERE ENVIO_MENSAJERIA_DIR_ORIG IS NOT NULL
 
-	--informacion personal
+	--usuario
 
-	INSERT INTO [APROBANDO].[informacion_personal] (nombre,apellido,dni,telefono,mail,fecha_de_nacimiento)
-	SELECT DISTINCT USUARIO_NOMBRE,USUARIO_APELLIDO,USUARIO_DNI,USUARIO_TELEFONO,USUARIO_MAIL,USUARIO_FECHA_NAC
+	INSERT INTO [APROBANDO].[usuario] (nombre,apellido,dni,telefono,mail,fecha_de_nacimiento,fecha_de_registro)
+	SELECT DISTINCT USUARIO_NOMBRE,USUARIO_APELLIDO,USUARIO_DNI,USUARIO_TELEFONO,USUARIO_MAIL,USUARIO_FECHA_NAC,USUARIO_FECHA_REGISTRO
 	FROM [gd_esquema].[Maestra]
 	WHERE USUARIO_DNI IS NOT NULL
 	UNION 
-	SELECT DISTINCT REPARTIDOR_NOMBRE,REPARTIDOR_APELLIDO,REPARTIDOR_DNI,REPARTIDOR_TELEFONO,REPARTIDOR_EMAIL,REPARTIDOR_FECHA_NAC
+	SELECT DISTINCT REPARTIDOR_NOMBRE,REPARTIDOR_APELLIDO,REPARTIDOR_DNI,REPARTIDOR_TELEFONO,REPARTIDOR_EMAIL,REPARTIDOR_FECHA_NAC,NULL
 	FROM [gd_esquema].[Maestra]
 	WHERE REPARTIDOR_DNI IS NOT NULL
 	UNION
-	SELECT DISTINCT OPERADOR_RECLAMO_NOMBRE,OPERADOR_RECLAMO_APELLIDO,OPERADOR_RECLAMO_DNI,OPERADOR_RECLAMO_TELEFONO,OPERADOR_RECLAMO_MAIL,OPERADOR_RECLAMO_FECHA_NAC
+	SELECT DISTINCT OPERADOR_RECLAMO_NOMBRE,OPERADOR_RECLAMO_APELLIDO,OPERADOR_RECLAMO_DNI,OPERADOR_RECLAMO_TELEFONO,OPERADOR_RECLAMO_MAIL,OPERADOR_RECLAMO_FECHA_NAC,NULL
 	FROM [gd_esquema].[Maestra]
 	WHERE OPERADOR_RECLAMO_DNI IS NOT NULL
 
-	--usuario
+	--direccion por usuario
 
-	INSERT INTO [APROBANDO].[usuario] (fecha_de_registro, info_codigo)
-	SELECT DISTINCT USUARIO_FECHA_REGISTRO, i.info_codigo 
-	FROM [gd_esquema].[Maestra] JOIN [APROBANDO].[informacion_personal] i
-	ON USUARIO_NOMBRE = i.nombre AND USUARIO_APELLIDO = i.apellido AND USUARIO_DNI = i.dni
-	WHERE USUARIO_DNI IS NOT NULL
+	
+
 END
 GO
 
@@ -445,7 +438,7 @@ EXEC [APROBANDO].[MIGRAR]
 GO
 
 
-
+select * from [APROBANDO].usuario
 --select * from gd_esquema.Maestra
 --select localidad, provincia_codigo from [APROBANDO].localidad
 --group by localidad, provincia_codigo
