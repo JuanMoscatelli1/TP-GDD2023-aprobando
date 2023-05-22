@@ -214,7 +214,8 @@ CREATE TABLE [APROBANDO].[operador](
 );
 
 	CREATE TABLE [APROBANDO].[cupon](
-		cupon_codigo DECIMAL(18,0) PRIMARY KEY,
+		cupon_codigo INTEGER IDENTITY(1,1) PRIMARY KEY,
+		cupon_nro DECIMAL(18,0),
 		tipo_cupon INTEGER REFERENCES [APROBANDO].[tipo_cupon],
 		usuario_codigo INTEGER REFERENCES [APROBANDO].[usuario],
 		fecha_alta DATETIME,
@@ -230,7 +231,7 @@ CREATE TABLE [APROBANDO].[reclamo](
 		pedido DECIMAL(18,0) REFERENCES [APROBANDO].[pedido],
 		tipo_de_reclamo INTEGER REFERENCES [APROBANDO].[tipo_de_reclamo],
 		operador_codigo INTEGER REFERENCES [APROBANDO].[operador],
-		cupon DECIMAL(18,0) REFERENCES [APROBANDO].[cupon],
+		cupon INTEGER REFERENCES [APROBANDO].[cupon],
 		descripcion NVARCHAR(255),
 		fecha_reclamo DATETIME,
 		fecha_solucion DATETIME,
@@ -238,7 +239,7 @@ CREATE TABLE [APROBANDO].[reclamo](
 		solucion NVARCHAR(255)
 );
 
-CREATE TABLE [APROBANDO].[tipo_estado](
+CREATE TABLE [APROBANDO].[tipo_estado_reclamo](
 		tipo_estado_codigo INTEGER IDENTITY(1,1) PRIMARY KEY,
 		tipo_estado NVARCHAR(50)
 );
@@ -246,7 +247,7 @@ CREATE TABLE [APROBANDO].[tipo_estado](
 CREATE TABLE [APROBANDO].[estado_de_reclamo](
 		estado_reclamo_codigo INTEGER IDENTITY(1,1) PRIMARY KEY,
 		nro_reclamo DECIMAL(18,0) REFERENCES [APROBANDO].[reclamo],
-		tipo_estado INTEGER REFERENCES [APROBANDO].[tipo_estado]
+		tipo_estado INTEGER REFERENCES [APROBANDO].[tipo_estado_reclamo]
 );
 
 CREATE TABLE [APROBANDO].[repartidor](
@@ -318,7 +319,7 @@ CREATE TABLE [APROBANDO].[item] (
 
 
 	CREATE TABLE [APROBANDO].[cupon_canjeado](
-		cupon_codigo DECIMAL(18,0) REFERENCES [APROBANDO].[cupon],
+		cupon_codigo INTEGER REFERENCES [APROBANDO].[cupon],
 		pedido_codigo DECIMAL(18,0) REFERENCES [APROBANDO].[pedido],
 		importe DECIMAL(18,2),
 		PRIMARY KEY(cupon_codigo,pedido_codigo)
@@ -433,17 +434,17 @@ BEGIN
 	SELECT DISTINCT d.direccion_codigo,u.usuario_codigo,DIRECCION_USUARIO_NOMBRE
 	FROM [gd_esquema].[Maestra] JOIN [APROBANDO].[localidad] l on DIRECCION_USUARIO_LOCALIDAD = l.localidad
 	JOIN [APROBANDO].[direccion] d on DIRECCION_USUARIO_DIRECCION = d.direccion and d.localidad_codigo = l.localidad_codigo
-	JOIN usuario u on u.dni = USUARIO_DNI
+	JOIN [APROBANDO].[usuario] u on u.dni = USUARIO_DNI
 	WHERE DIRECCION_USUARIO_NOMBRE IS NOT NULL
 	UNION 
 	SELECT DISTINCT d.direccion_codigo,u.usuario_codigo,NULL
 	FROM [gd_esquema].[Maestra] JOIN [APROBANDO].[direccion] d on OPERADOR_RECLAMO_DIRECCION = d.direccion 
-	JOIN usuario u on u.dni = OPERADOR_RECLAMO_DNI
+	JOIN [APROBANDO].[usuario] u on u.dni = OPERADOR_RECLAMO_DNI
 	WHERE OPERADOR_RECLAMO_DNI IS NOT NULL
 	UNION 
 	SELECT DISTINCT d.direccion_codigo,u.usuario_codigo,NULL
 	FROM [gd_esquema].[Maestra] JOIN [APROBANDO].[direccion] d on REPARTIDOR_DIRECION = d.direccion 
-	JOIN usuario u on u.dni = REPARTIDOR_DNI
+	JOIN [APROBANDO].[usuario] u on u.dni = REPARTIDOR_DNI
 	WHERE REPARTIDOR_DNI IS NOT NULL
 
 	--OPERADOR
@@ -468,12 +469,115 @@ BEGIN
 	JOIN [APROBANDO].[tipo_movilidad] tm on REPARTIDOR_TIPO_MOVILIDAD = tm.movilidad
 	WHERE REPARTIDOR_DNI IS NOT NULL
 
+	-- localidad por repartidor
+
+	INSERT INTO [APROBANDO].[localidad_por_repartidor](localidad_codigo,repartidor_codigo,activa)
+	SELECT DISTINCT l.localidad_codigo, r.repartidor_codigo, NULL
+	FROM [gd_esquema].[Maestra] JOIN [APROBANDO].[usuario] ur on ur.dni = REPARTIDOR_DNI JOIN repartidor r on r.usuario_codigo = ur.usuario_codigo
+	JOIN [APROBANDO].[localidad] l on LOCAL_LOCALIDAD = l.localidad
+	WHERE REPARTIDOR_DNI IS NOT NULL AND LOCAL_LOCALIDAD IS NOT NULL
+
+	-- tipo cupon 
+
+	INSERT INTO [APROBANDO].[tipo_cupon](tipo_cupon)
+	SELECT DISTINCT CUPON_TIPO
+	FROM [gd_esquema].[Maestra]
+	WHERE CUPON_TIPO IS NOT NULL
+	UNION
+	SELECT DISTINCT CUPON_RECLAMO_TIPO
+	FROM [gd_esquema].[Maestra]
+	WHERE CUPON_RECLAMO_TIPO IS NOT NULL
+
+	-- cupon 
+
+	INSERT INTO [APROBANDO].[cupon](cupon_nro,fecha_alta,fecha_vencimiento,usuario_codigo,monto,usado,tipo_cupon)
+	SELECT DISTINCT CUPON_NRO,CUPON_FECHA_ALTA,CUPON_FECHA_VENCIMIENTO,u.usuario_codigo,CUPON_MONTO,1,tc.tipo_cupon_codigo
+	FROM [gd_esquema].[Maestra] JOIN [APROBANDO].[usuario] u on u.dni = USUARIO_DNI
+	JOIN [APROBANDO].[tipo_cupon] tc on tc.tipo_cupon = CUPON_TIPO
+	WHERE CUPON_NRO IS NOT NULL
+	UNION
+	SELECT DISTINCT CUPON_RECLAMO_NRO,CUPON_RECLAMO_FECHA_ALTA,CUPON_RECLAMO_FECHA_VENCIMIENTO,u.usuario_codigo,CUPON_RECLAMO_MONTO,1,tc.tipo_cupon_codigo
+	FROM [gd_esquema].[Maestra] JOIN [APROBANDO].[usuario] u on u.dni = USUARIO_DNI
+	JOIN [APROBANDO].[tipo_cupon] tc on tc.tipo_cupon = CUPON_RECLAMO_TIPO
+	WHERE CUPON_RECLAMO_NRO IS NOT NULL
+
+	-- tipo reclamo
+
+	INSERT INTO [APROBANDO].[tipo_de_reclamo](tipo_de_reclamo)
+	SELECT DISTINCT RECLAMO_TIPO 
+	FROM [gd_esquema].[Maestra]
+	WHERE RECLAMO_TIPO IS NOT NULL
+
+	-- tarjeta
+
+    INSERT INTO [APROBANDO].[tarjeta] (numero,marca)
+    SELECT DISTINCT MEDIO_PAGO_NRO_TARJETA, MARCA_TARJETA
+    FROM [gd_esquema].[Maestra]
+    WHERE MEDIO_PAGO_NRO_TARJETA IS NOT NULL
+
+    -- tarjeta por usuario
+
+    INSERT INTO [APROBANDO].[tarjeta_por_usuario] (tarjeta_codigo, usuario_codigo)
+    SELECT DISTINCT t.tarjeta_codigo, u.usuario_codigo 
+    FROM [gd_esquema].[Maestra] JOIN [APROBANDO].[tarjeta] t ON t.numero = MEDIO_PAGO_NRO_TARJETA
+    JOIN [APROBANDO].[usuario] u ON u.dni = USUARIO_DNI
+    WHERE USUARIO_DNI IS NOT NULL
+
+    -- tipo medio de pago
+
+    INSERT INTO [APROBANDO].[tipo_medio_pago] (tipo_medio_pago)
+    SELECT DISTINCT MEDIO_PAGO_TIPO
+    FROM [gd_esquema].[Maestra]
+    WHERE MEDIO_PAGO_TIPO IS NOT NULL
+
+	  -- medio de pago
+
+    INSERT INTO [APROBANDO].[medio_de_pago] (tipo_medio_pago, tarjeta_codigo, usuario_codigo)
+    SELECT DISTINCT tmp.t_medio_pago_codigo, t.tarjeta_codigo, u.usuario_codigo
+    FROM [gd_esquema].[Maestra] JOIN [APROBANDO].[tipo_medio_pago] tmp ON MEDIO_PAGO_TIPO = tmp.tipo_medio_pago
+    JOIN [APROBANDO].[tarjeta] t ON MEDIO_PAGO_NRO_TARJETA = t.numero
+    JOIN [APROBANDO].[usuario] u ON USUARIO_DNI = u.dni
+    WHERE USUARIO_DNI IS NOT NULL AND MEDIO_PAGO_NRO_TARJETA IS NOT NULL
+
+    -- tipo_estado
+
+    INSERT INTO [APROBANDO].[tipo_estado_reclamo] (tipo_estado)
+    SELECT DISTINCT RECLAMO_ESTADO
+    FROM [gd_esquema].[Maestra]
+    WHERE RECLAMO_ESTADO IS NOT NULL
+
+	-- dia
+
+	INSERT INTO [APROBANDO].[dia](dia)
+	SELECT DISTINCT HORARIO_LOCAL_DIA
+	FROM [gd_esquema].[Maestra]
+	WHERE HORARIO_LOCAL_DIA IS NOT NULL
+
+	--  tipo estado pedido 
+
+	INSERT INTO [APROBANDO].[tipo_estado_pedido](tipo_estado_pedido)
+	SELECT DISTINCT PEDIDO_ESTADO
+	FROM [gd_esquema].[Maestra]
+	WHERE PEDIDO_ESTADO IS NOT NULL
+
+	-- tipo estado mensajeria
+
+    INSERT INTO [APROBANDO].[tipo_estado_mensajeria] (tipo_estado)
+    SELECT DISTINCT ENVIO_MENSAJERIA_ESTADO
+    FROM [gd_esquema].[Maestra]
+    WHERE ENVIO_MENSAJERIA_ESTADO IS NOT NULL
+
 END
 GO
 
 EXEC [APROBANDO].[MIGRAR]
 GO
 
+--select * from [gd_esquema].Maestra
+--order by RECLAMO_ESTADO
+
+--select * from [APROBANDO].[localidad_por_repartidor]
+--order by repartidor_codigo
 
 --select * from [APROBANDO].[usuario]
 
