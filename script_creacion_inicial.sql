@@ -83,8 +83,9 @@ BEGIN
 
 	CREATE TABLE [APROBANDO].[tipo_paquete] (
 		tipo_paquete_codigo INTEGER IDENTITY(1,1) PRIMARY KEY,
+		tipo_paquete NVARCHAR(50),
 		ancho_max DECIMAL(18,2),
-		largomax DECIMAL(18,2),
+		largo_max DECIMAL(18,2),
 		alto_max DECIMAL(18,2),
 		peso_max DECIMAL(18,2),
 		precio DECIMAL(18,2)
@@ -566,6 +567,49 @@ BEGIN
     SELECT DISTINCT ENVIO_MENSAJERIA_ESTADO
     FROM [gd_esquema].[Maestra]
     WHERE ENVIO_MENSAJERIA_ESTADO IS NOT NULL
+
+	--tipo local
+
+	INSERT INTO [APROBANDO].[tipo_local] (tipo_local)
+	select distinct LOCAL_TIPO
+	from [gd_esquema].[Maestra]
+ 
+	--producto
+
+INSERT INTO [APROBANDO].[producto] (nombre, descripcion)
+	select distinct PRODUCTO_LOCAL_NOMBRE, PRODUCTO_LOCAL_DESCRIPCION 
+	from [gd_esquema].[Maestra]
+
+	--tipo paquete
+
+INSERT INTO [APROBANDO].[tipo_paquete] (tipo_paquete,ancho_max, largo_max, alto_max, peso_max, precio)
+	select distinct PAQUETE_TIPO,PAQUETE_ANCHO_MAX, PAQUETE_LARGO_MAX, PAQUETE_ALTO_MAX, PAQUETE_PESO_MAX, PAQUETE_TIPO_PRECIO
+	from [gd_esquema].[Maestra] 
+	where PAQUETE_TIPO is not NULL
+
+	--envio mensajeria (NO AGREGA NADA :()
+		
+INSERT INTO [APROBANDO].[envio_mensajeria] (nro_envio_msj,distancia_en_km,valor_asegurado,observaciones,precio_envio,
+		precio_seguro,propina,total,tiempo_estimado_entrega,fecha_hora_entrega,calificacion,usuario,tipo_paquete_codigo
+		,repartidor_codigo,medio_de_pago_codigo)
+	select distinct ENVIO_MENSAJERIA_NRO, 
+	ENVIO_MENSAJERIA_KM, ENVIO_MENSAJERIA_VALOR_ASEGURADO, 
+	ENVIO_MENSAJERIA_OBSERV, ENVIO_MENSAJERIA_PRECIO_ENVIO, 
+	ENVIO_MENSAJERIA_PRECIO_SEGURO, ENVIO_MENSAJERIA_PROPINA, 
+	ENVIO_MENSAJERIA_TOTAL, ENVIO_MENSAJERIA_TIEMPO_ESTIMADO,
+	ENVIO_MENSAJERIA_FECHA_ENTREGA, ENVIO_MENSAJERIA_CALIFICACION,
+	u.usuario_codigo,tp.tipo_paquete_codigo,r.repartidor_codigo,
+	mp.medio_pago_codigo
+	from [gd_esquema].[Maestra]
+	JOIN [APROBANDO].[usuario] u ON USUARIO_DNI = u.dni
+	JOIN [APROBANDO].[tipo_paquete] tp ON PAQUETE_TIPO = tp.tipo_paquete 
+	JOIN [APROBANDO].[usuario] ur ON REPARTIDOR_DNI = ur.dni
+	JOIN [APROBANDO].[repartidor] r on u.usuario_codigo = r.usuario_codigo
+	JOIN [APROBANDO].[tipo_medio_pago] tmp on tmp.tipo_medio_pago = MEDIO_PAGO_TIPO
+	JOIN [APROBANDO].[medio_de_pago] mp on mp.tipo_medio_pago = tmp.t_medio_pago_codigo and u.usuario_codigo = mp.usuario_codigo
+	--JOIN [APROBANDO].[direccion] 
+
+
 
 END
 GO
