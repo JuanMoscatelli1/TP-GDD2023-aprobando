@@ -55,6 +55,16 @@ BEGIN
 		descripcion NVARCHAR(50)
 	);
 
+	CREATE TABLE [APROBANDO].[informacion_personal](
+		info_codigo INTEGER IDENTITY(1,1) PRIMARY KEY,
+		telefono DECIMAL(18,0),
+		mail NVARCHAR(255),
+		fecha_de_nacimiento DATE,
+		dni DECIMAL(18,0),
+		nombre NVARCHAR(255),
+		apellido NVARCHAR(255)
+	);
+
 	CREATE TABLE [APROBANDO].[tipo_local] (
 		tipo_local_codigo INTEGER IDENTITY(1,1) PRIMARY KEY,
 		tipo_local NVARCHAR(50)
@@ -91,13 +101,8 @@ BEGIN
 
 	CREATE TABLE [APROBANDO].[usuario] (
 		usuario_codigo INTEGER IDENTITY(1,1) PRIMARY KEY,
-		dni DECIMAL(18,0),
-		nombre NVARCHAR(255),
-		apellido NVARCHAR(255),
-		fecha_de_registro DATE,
-		direccion NVARCHAR(255),
-		telefono DECIMAL(18,0),
-		mail NVARCHAR(255) 
+		info_codigo INTEGER REFERENCES [APROBANDO].[informacion_personal],
+		fecha_de_registro DATETIME2(3)
 	);
 
 
@@ -190,7 +195,8 @@ CREATE TABLE [APROBANDO].[provincia] (
 
 CREATE TABLE [APROBANDO].[localidad](
 		localidad_codigo INTEGER IDENTITY(1,1) PRIMARY KEY,
-		provincia_codigo INTEGER REFERENCES [APROBANDO].[provincia]
+		provincia_codigo INTEGER REFERENCES [APROBANDO].[provincia],
+		localidad NVARCHAR(255)
 );
 
 CREATE TABLE [APROBANDO].[direccion](
@@ -202,12 +208,13 @@ CREATE TABLE [APROBANDO].[direccion](
 CREATE TABLE [APROBANDO].[direccion_por_usuario](
 		direccion_codigo INTEGER REFERENCES [APROBANDO].[direccion],
 		usuario_codigo INTEGER REFERENCES [APROBANDO].[usuario],
+		tipo_direccion NVARCHAR(50),
 		PRIMARY KEY(direccion_codigo,usuario_codigo)
 );
 
 CREATE TABLE [APROBANDO].[operador](
 		operador_codigo INTEGER IDENTITY(1,1) PRIMARY KEY,
-		usuario_codigo INTEGER REFERENCES [APROBANDO].[usuario],
+		info_codigo INTEGER REFERENCES [APROBANDO].[informacion_personal],
 );
 
 	CREATE TABLE [APROBANDO].[cupon](
@@ -248,7 +255,7 @@ CREATE TABLE [APROBANDO].[estado_de_reclamo](
 
 CREATE TABLE [APROBANDO].[repartidor](
 		repartidor_codigo INTEGER IDENTITY(1,1) PRIMARY KEY,
-		usuario_codigo INTEGER REFERENCES [APROBANDO].[usuario],
+		info_codigo INTEGER REFERENCES [APROBANDO].[informacion_personal],
 		movilidad INTEGER REFERENCES [APROBANDO].[tipo_movilidad]
 	);
 
@@ -329,8 +336,121 @@ CREATE TABLE [APROBANDO].[item] (
 		activa BIT
 	);
 
+	
+
 END
 GO
 
 EXEC [APROBANDO].[CREATE_TABLES]
 GO
+
+IF NOT EXISTS(SELECT name FROM sys.procedures WHERE name='MIGRAR')
+	EXEC('CREATE PROCEDURE [APROBANDO].[MIGRAR] AS BEGIN SET NOCOUNT ON; END');
+GO
+
+ALTER PROCEDURE [APROBANDO].[MIGRAR]
+AS
+BEGIN
+
+	--provincia
+
+	INSERT INTO [APROBANDO].[provincia] (provincia)
+		SELECT DISTINCT ENVIO_MENSAJERIA_PROVINCIA
+		FROM [gd_esquema].[Maestra]
+		WHERE ENVIO_MENSAJERIA_PROVINCIA IS NOT NULL
+		UNION
+		SELECT DISTINCT DIRECCION_USUARIO_PROVINCIA
+		FROM [gd_esquema].[Maestra]
+		WHERE DIRECCION_USUARIO_PROVINCIA IS NOT NULL	
+		UNION
+		SELECT DISTINCT LOCAL_PROVINCIA
+		FROM [gd_esquema].Maestra
+		WHERE LOCAL_PROVINCIA IS NOT NULL
+
+	--localidad
+	
+	INSERT INTO [APROBANDO].[localidad] (localidad,provincia_codigo)
+		SELECT DISTINCT ENVIO_MENSAJERIA_LOCALIDAD,provincia_codigo
+		FROM [gd_esquema].[Maestra] join [APROBANDO].provincia
+		ON ENVIO_MENSAJERIA_PROVINCIA = provincia
+		WHERE ENVIO_MENSAJERIA_LOCALIDAD IS NOT NULL
+		UNION
+		SELECT DISTINCT DIRECCION_USUARIO_LOCALIDAD,provincia_codigo
+		FROM [gd_esquema].[Maestra] join [APROBANDO].provincia
+		ON DIRECCION_USUARIO_PROVINCIA= provincia
+		WHERE DIRECCION_USUARIO_LOCALIDAD IS NOT NULL
+		UNION
+		SELECT DISTINCT LOCAL_LOCALIDAD,provincia_codigo
+		FROM [gd_esquema].[Maestra] join [APROBANDO].provincia
+		ON LOCAL_PROVINCIA = provincia
+		WHERE LOCAL_LOCALIDAD IS NOT NULL
+
+	--direccion(los repartidores y operadores tendrían el campo tipo de direccion y la localidad en null ya que no lo especifican)
+
+	INSERT INTO [APROBANDO].[direccion] (direccion,localidad_codigo)
+	SELECT DISTINCT DIRECCION_USUARIO_DIRECCION, localidad_codigo
+	FROM [gd_esquema].[Maestra] JOIN [APROBANDO].[localidad] 
+	ON DIRECCION_USUARIO_LOCALIDAD = localidad
+	WHERE DIRECCION_USUARIO_DIRECCION IS NOT NULL
+	UNION
+	SELECT DISTINCT LOCAL_DIRECCION, localidad_codigo
+	FROM [gd_esquema].[Maestra] JOIN [APROBANDO].[localidad] 
+	ON LOCAL_LOCALIDAD = localidad
+	WHERE LOCAL_DIRECCION IS NOT NULL
+	UNION 
+	SELECT DISTINCT OPERADOR_RECLAMO_DIRECCION, NULL
+	FROM [gd_esquema].[Maestra]
+	WHERE OPERADOR_RECLAMO_DIRECCION IS NOT NULL
+	UNION
+	SELECT DISTINCT REPARTIDOR_DIRECION, NULL
+	FROM [gd_esquema].[Maestra]
+	WHERE REPARTIDOR_DIRECION IS NOT NULL
+	UNION
+	SELECT DISTINCT ENVIO_MENSAJERIA_DIR_DEST,localidad_codigo
+	FROM [gd_esquema].[Maestra] JOIN [APROBANDO].[localidad] 
+	ON ENVIO_MENSAJERIA_LOCALIDAD = localidad
+	WHERE ENVIO_MENSAJERIA_DIR_DEST IS NOT NULL
+	UNION
+	SELECT DISTINCT ENVIO_MENSAJERIA_DIR_ORIG,localidad_codigo
+	FROM [gd_esquema].[Maestra] JOIN [APROBANDO].[localidad] 
+	ON ENVIO_MENSAJERIA_LOCALIDAD = localidad
+	WHERE ENVIO_MENSAJERIA_DIR_ORIG IS NOT NULL
+
+	--informacion personal
+
+	INSERT INTO [APROBANDO].[informacion_personal] (nombre,apellido,dni,telefono,mail,fecha_de_nacimiento)
+	SELECT DISTINCT USUARIO_NOMBRE,USUARIO_APELLIDO,USUARIO_DNI,USUARIO_TELEFONO,USUARIO_MAIL,USUARIO_FECHA_NAC
+	FROM [gd_esquema].[Maestra]
+	WHERE USUARIO_DNI IS NOT NULL
+	UNION 
+	SELECT DISTINCT REPARTIDOR_NOMBRE,REPARTIDOR_APELLIDO,REPARTIDOR_DNI,REPARTIDOR_TELEFONO,REPARTIDOR_EMAIL,REPARTIDOR_FECHA_NAC
+	FROM [gd_esquema].[Maestra]
+	WHERE REPARTIDOR_DNI IS NOT NULL
+	UNION
+	SELECT DISTINCT OPERADOR_RECLAMO_NOMBRE,OPERADOR_RECLAMO_APELLIDO,OPERADOR_RECLAMO_DNI,OPERADOR_RECLAMO_TELEFONO,OPERADOR_RECLAMO_MAIL,OPERADOR_RECLAMO_FECHA_NAC
+	FROM [gd_esquema].[Maestra]
+	WHERE OPERADOR_RECLAMO_DNI IS NOT NULL
+
+	--usuario
+
+	INSERT INTO [APROBANDO].[usuario] (fecha_de_registro, info_codigo)
+	SELECT DISTINCT USUARIO_FECHA_REGISTRO, i.info_codigo 
+	FROM [gd_esquema].[Maestra] JOIN [APROBANDO].[informacion_personal] i
+	ON USUARIO_NOMBRE = i.nombre AND USUARIO_APELLIDO = i.apellido AND USUARIO_DNI = i.dni
+	WHERE USUARIO_DNI IS NOT NULL
+END
+GO
+
+EXEC [APROBANDO].[MIGRAR]
+GO
+
+
+
+--select * from gd_esquema.Maestra
+--select localidad, provincia_codigo from [APROBANDO].localidad
+--group by localidad, provincia_codigo
+--order by localidad
+--select d.localidad_codigo,l.localidad from [APROBANDO].[direccion] d join [APROBANDO].[localidad] l on d.localidad_codigo = l.localidad_codigo
+--where d.direccion = '25 de MAYO 2097'
+
+--select * from [APROBANDO].[direccion]
