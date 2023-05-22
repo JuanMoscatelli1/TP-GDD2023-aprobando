@@ -429,7 +429,44 @@ BEGIN
 
 	--direccion por usuario
 
-	
+	INSERT INTO [APROBANDO].[direccion_por_usuario] (direccion_codigo,usuario_codigo,tipo_direccion)
+	SELECT DISTINCT d.direccion_codigo,u.usuario_codigo,DIRECCION_USUARIO_NOMBRE
+	FROM [gd_esquema].[Maestra] JOIN [APROBANDO].[localidad] l on DIRECCION_USUARIO_LOCALIDAD = l.localidad
+	JOIN [APROBANDO].[direccion] d on DIRECCION_USUARIO_DIRECCION = d.direccion and d.localidad_codigo = l.localidad_codigo
+	JOIN usuario u on u.dni = USUARIO_DNI
+	WHERE DIRECCION_USUARIO_NOMBRE IS NOT NULL
+	UNION 
+	SELECT DISTINCT d.direccion_codigo,u.usuario_codigo,NULL
+	FROM [gd_esquema].[Maestra] JOIN [APROBANDO].[direccion] d on OPERADOR_RECLAMO_DIRECCION = d.direccion 
+	JOIN usuario u on u.dni = OPERADOR_RECLAMO_DNI
+	WHERE OPERADOR_RECLAMO_DNI IS NOT NULL
+	UNION 
+	SELECT DISTINCT d.direccion_codigo,u.usuario_codigo,NULL
+	FROM [gd_esquema].[Maestra] JOIN [APROBANDO].[direccion] d on REPARTIDOR_DIRECION = d.direccion 
+	JOIN usuario u on u.dni = REPARTIDOR_DNI
+	WHERE REPARTIDOR_DNI IS NOT NULL
+
+	--OPERADOR
+
+	INSERT INTO [APROBANDO].[operador] (usuario_codigo)
+	SELECT DISTINCT u.usuario_codigo
+	FROM [gd_esquema].[Maestra] JOIN [APROBANDO].[usuario] u ON u.dni = OPERADOR_RECLAMO_DNI
+	WHERE OPERADOR_RECLAMO_DNI IS NOT NULL AND u.fecha_de_registro IS NULL
+
+	--tipo movilidad
+
+	INSERT INTO [APROBANDO].[tipo_movilidad] (movilidad)
+	SELECT DISTINCT REPARTIDOR_TIPO_MOVILIDAD
+	FROM [gd_esquema].[Maestra]
+	WHERE REPARTIDOR_TIPO_MOVILIDAD IS NOT NULL
+
+	-- repartidor 
+
+	INSERT INTO [APROBANDO].[repartidor] (usuario_codigo,movilidad)
+	SELECT DISTINCT u.usuario_codigo, tm.movilidad_codigo 
+	FROM [gd_esquema].[Maestra] JOIN [APROBANDO].[usuario] u ON u.dni = REPARTIDOR_DNI
+	JOIN [APROBANDO].[tipo_movilidad] tm on REPARTIDOR_TIPO_MOVILIDAD = tm.movilidad
+	WHERE REPARTIDOR_DNI IS NOT NULL
 
 END
 GO
@@ -438,8 +475,15 @@ EXEC [APROBANDO].[MIGRAR]
 GO
 
 
-select * from [APROBANDO].usuario
---select * from gd_esquema.Maestra
+--select * from [APROBANDO].[usuario]
+
+--select d.direccion_codigo,d.tipo_direccion,d.usuario_codigo,dir.direccion,l.localidad from [APROBANDO].direccion_por_usuario d
+--JOIN  [APROBANDO].[direccion] dir on d.direccion_codigo = dir.direccion_codigo
+--JOIN [APROBANDO].[localidad] l on dir.localidad_codigo = l.localidad_codigo
+--order by usuario_codigo
+
+--select * from [APROBANDO].[direccion_por_usuario]
+
 --select localidad, provincia_codigo from [APROBANDO].localidad
 --group by localidad, provincia_codigo
 --order by localidad
