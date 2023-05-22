@@ -568,31 +568,63 @@ BEGIN
     FROM [gd_esquema].[Maestra]
     WHERE ENVIO_MENSAJERIA_ESTADO IS NOT NULL
 
-	--tipo local
+	-- tipo local
 
 	INSERT INTO [APROBANDO].[tipo_local] (tipo_local)
-	select distinct LOCAL_TIPO
-	from [gd_esquema].[Maestra]
- 
-	--producto
+	SELECT DISTINCT LOCAL_TIPO
+	FROM [gd_esquema].[Maestra]
+	WHERE LOCAL_TIPO IS NOT NULL
 
-INSERT INTO [APROBANDO].[producto] (nombre, descripcion)
-	select distinct PRODUCTO_LOCAL_NOMBRE, PRODUCTO_LOCAL_DESCRIPCION 
-	from [gd_esquema].[Maestra]
+	-- categoria FALTA IMPLEMENTACION DE CATEGORIA (NO HAY NADA EN LA TABLA MAESTRA)
 
-	--tipo paquete
+	INSERT INTO [APROBANDO].[categoria] (tipo_local_codigo, categoria)
+	SELECT DISTINCT t.tipo_local_codigo
+	FROM [gd_esquema].[Maestra] JOIN [APROBANDO].[tipo_local] t ON LOCAL_TIPO = t.tipo_local
 
-INSERT INTO [APROBANDO].[tipo_paquete] (tipo_paquete,ancho_max, largo_max, alto_max, peso_max, precio)
-	select distinct PAQUETE_TIPO,PAQUETE_ANCHO_MAX, PAQUETE_LARGO_MAX, PAQUETE_ALTO_MAX, PAQUETE_PESO_MAX, PAQUETE_TIPO_PRECIO
-	from [gd_esquema].[Maestra] 
-	where PAQUETE_TIPO is not NULL
+	-- local FALTA IMPLEMENTACION DE CATEGORIA (NO HAY NADA EN LA TABLA MAESTRA)
+
+	INSERT INTO [APROBANDO].[local] (categoria, direccion, nombre)
+	SELECT DISTINCT c.categoria, d.direccion, LOCAL_NOMBRE
+	FROM [gd_esquema].[Maestra] JOIN [APROBANDO].[direccion] d ON LOCAL_DIRECCION = d.direccion
+	JOIN [APROBANDO].[categoria] 
+	WHERE LOCAL_DIRECCION IS NOT NULL
+
+	-- horario apertura
+
+	INSERT INTO [APROBANDO].[horario_apertura] (local_codigo, dia, horario_inicio, horario_fin)
+	SELECT DISTINCT l.local_codigo, d.dia, HORARIO_LOCAL_HORA_APERTURA, HORARIO_LOCAL_HORA_CIERRE
+	FROM [gd_esquema].[Maestra] JOIN [APROBANDO].[local] l ON LOCAL_NOMBRE = l.nombre
+	JOIN [APROBANDO].[dia] d ON HORARIO_LOCAL_DIA = d.dia
+	WHERE LOCAL_NOMBRE IS NOT NULL AND HORARIO_LOCAL_DIA IS NOT NULL
+
+	-- producto 
+
+	INSERT INTO [APROBANDO].[producto] (nombre, descripcion)
+	SELECT DISTINCT PRODUCTO_LOCAL_NOMBRE, PRODUCTO_LOCAL_DESCRIPCION 
+	FROM [gd_esquema].[Maestra]
+	WHERE PRODUCTO_LOCAL_NOMBRE IS NOT NULL
+
+	-- producto local
+
+	INSERT INTO [APROBANDO].[producto_local] (local_codigo, producto_codigo, precio_en_local)
+	SELECT DISTINCT l.local_codigo, p.producto_codigo, PRODUCTO_LOCAL_PRECIO
+	FROM [gd_esquema].[Maestra] JOIN [APROBANDO].[local] l ON LOCAL_NOMBRE = l.local_nombre
+	JOIN [APROBANDO].[producto] p ON PRODUCTO_LOCAL_NOMBRE = p.nombre
+	WHERE LOCAL_NOMBRE IS NOT NULL AND PRODUCTO_LOCAL_NOMBRE IS NOT NULL
+
+	-- tipo paquete
+
+	INSERT INTO [APROBANDO].[tipo_paquete] (ancho_max, largo_max, alto_max, peso_max, precio)
+	SELECT DISTINCT PAQUETE_ANCHO_MAX, PAQUETE_LARGO_MAX, PAQUETE_ALTO_MAX, PAQUETE_PESO_MAX, PAQUETE_TIPO_PRECIO
+	FROM [gd_esquema].[Maestra] 
+	WHERE PAQUETE_TIPO_PRECIO IS NOT NULL
 
 	--envio mensajeria (NO AGREGA NADA :()
 		
-INSERT INTO [APROBANDO].[envio_mensajeria] (nro_envio_msj,distancia_en_km,valor_asegurado,observaciones,precio_envio,
+	INSERT INTO [APROBANDO].[envio_mensajeria] (nro_envio_msj,distancia_en_km,valor_asegurado,observaciones,precio_envio,
 		precio_seguro,propina,total,tiempo_estimado_entrega,fecha_hora_entrega,calificacion,usuario,tipo_paquete_codigo
 		,repartidor_codigo,medio_de_pago_codigo)
-	select distinct ENVIO_MENSAJERIA_NRO, 
+	SELECT DISTINCT ENVIO_MENSAJERIA_NRO, 
 	ENVIO_MENSAJERIA_KM, ENVIO_MENSAJERIA_VALOR_ASEGURADO, 
 	ENVIO_MENSAJERIA_OBSERV, ENVIO_MENSAJERIA_PRECIO_ENVIO, 
 	ENVIO_MENSAJERIA_PRECIO_SEGURO, ENVIO_MENSAJERIA_PROPINA, 
@@ -600,15 +632,80 @@ INSERT INTO [APROBANDO].[envio_mensajeria] (nro_envio_msj,distancia_en_km,valor_
 	ENVIO_MENSAJERIA_FECHA_ENTREGA, ENVIO_MENSAJERIA_CALIFICACION,
 	u.usuario_codigo,tp.tipo_paquete_codigo,r.repartidor_codigo,
 	mp.medio_pago_codigo
-	from [gd_esquema].[Maestra]
+	FROM [gd_esquema].[Maestra]
 	JOIN [APROBANDO].[usuario] u ON USUARIO_DNI = u.dni
 	JOIN [APROBANDO].[tipo_paquete] tp ON PAQUETE_TIPO = tp.tipo_paquete 
 	JOIN [APROBANDO].[usuario] ur ON REPARTIDOR_DNI = ur.dni
-	JOIN [APROBANDO].[repartidor] r on u.usuario_codigo = r.usuario_codigo
-	JOIN [APROBANDO].[tipo_medio_pago] tmp on tmp.tipo_medio_pago = MEDIO_PAGO_TIPO
-	JOIN [APROBANDO].[medio_de_pago] mp on mp.tipo_medio_pago = tmp.t_medio_pago_codigo and u.usuario_codigo = mp.usuario_codigo
+	JOIN [APROBANDO].[repartidor] r ON u.usuario_codigo = r.usuario_codigo
+	JOIN [APROBANDO].[tipo_medio_pago] tmp ON tmp.tipo_medio_pago = MEDIO_PAGO_TIPO
+	JOIN [APROBANDO].[medio_de_pago] mp ON mp.tipo_medio_pago = tmp.t_medio_pago_codigo AND u.usuario_codigo = mp.usuario_codigo
 	--JOIN [APROBANDO].[direccion] 
 
+	-- estado mensajeria
+	
+	INSERT INTO [APROBANDO].[estado_mensajeria] (tipo_estado, nro_envio_msj, fecha_estado)
+	SELECT DISTINCT em.tipo_estado, m.nro_envio_msj, ENVIO_MENSAJERIA_FECHA
+	FROM [gd_esquema].[Maestra] JOIN [APROBANDO].[tipo_estado_mensajeria] em ON ENVIO_MENSAJERIA_ESTADO = em.tipo_estado
+	JOIN [APROBANDO].[envio_mensajeria] m ON ENVIO_MENSAJERIA_NRO = m.nro_envio_msj
+	WHERE ENVIO_MENSAJERIA_ESTADO IS NOT NULL AND ENVIO_MENSAJERIA_NRO IS NOT NULL
+
+	-- pedido REVISAR MEDIO DE PAGO
+	
+	INSERT INTO [APROBANDO].[pedido] (usuario_codigo, local_codigo, medio_de_pago, fecha_pedido, tarifa_delivery, total, observaciones,
+	tiempo_estimado_entrega, fecha_entrega, calificacion)
+	SELECT DISTINCT u.usuario_codigo, l.local_codigo, mp.medio_de_pago, PEDIDO_FECHA, PEDIDO_TARIFA_SERVICIO, PEDIDO_TOTAL_SERVICIO, PEDIDO_OBSERV,
+	PEDIDO_TIEMPO_ESTIMADO_ENTREGA, PEDIDO_FECHA_ENTREGA, PEDIDO_CALIFICACION
+	FROM [gd_esquema].[Maestra] JOIN [APROBANDO].[usuario] u ON USUARIO_DNI = u.dni
+	JOIN [APROBANDO].[local] l ON LOCAL_NOMBRE = l.nombre
+	JOIN [APROBANDO].[tarjeta] mp ON MEDIO_PAGO_NRO_TARJETA = mp.numero
+	WHERE USUARIO_DNI IS NOT NULL AND LOCAL_NOMBRE IS NOT NULL AND MEDIO_PAGO_NRO_TARJETA IS NOT NULL
+
+	-- item REVISAR PRODUCTO CODIGO
+
+	INSERT INTO [APROBANDO].[item] (producto_codigo, local_codigo, nro_pedido, cantidad, precio_unitario, total)
+	SELECT DISTINCT p.producto_codigo, l.local_codigo, pe.nro_pedido, PRODUCTO_CANTIDAD, PRODUCTO_LOCAL_PRECIO, PEDIDO_TOTAL_PRODUCTOS
+	FROM [gd_esquema].[Maestra] JOIN [APROBANDO].[producto] p ON PRODUCTO_LOCAL_CODIGO = p.producto_codigo
+	JOIN [APROBANDO].[local] l ON LOCAL_NOMBRE = l.nombre
+	JOIN [APROBANDO].[pedido] pe ON PEDIDO_NRO = pe.nro_pedido
+	WHERE PRODUCTO_LOCAL_CODIGO IS NOT NULL AND LOCAL_NOMBRE IS NOT NULL AND PEDIDO_NRO IS NOT NULL
+
+	-- estado_pedido REVISAR FECHA
+
+	INSERT INTO [APROBANDO].[estado_pedido] (tipo_estado, nro_pedido, fecha_estado)
+	SELECT DISTINCT te.tipo_estado, p.nro_pedido, PEDIDO_FECHA
+	FROM [gd_esquema].[Maestra] JOIN [APROBANDO].[tipo_estado_pedido] te ON PEDIDO_ESTADO = te.tipo_estado
+	JOIN [APROBANDO].[pedido] p ON PEDIDO_NRO = p.nro_pedido 
+	WHERE PEDIDO_ESTADO IS NOT NULL AND PEDIDO_NRO IS NOT NULL
+
+	-- cupon canjeado
+
+	INSERT INTO [APROBANDO].[cupon_canjeado] (cupon_codigo, pedido_codigo, importe)
+	SELECT DISTINCT c.cupon_codigo, p.pedido_codigo, CUPON_MONTO
+	FROM [gd_esquema].[Maestra] JOIN [APROBANDO].[cupon] c ON CUPON_NRO = c.cupon_codigo
+	JOIN [APROBANDO].[pedido] p ON PEDIDO_NRO = p.pedido_codigo
+	WHERE CUPON_NRO IS NOT NULL AND PEDIDO_NRO IS NOT NULL	
+
+	-- envio REVISAR DNI REPARTIDOR
+
+	INSERT INTO [APROBANDO].[envio] (direccion, precio, propina, repartidor_codigo, nro_pedido)
+	SELECT DISTINCT d.direccion, PEDIDO_PRECIO_ENVIO, PEDIDO_PROPINA, r.repartidor_codigo, p.nro_pedido
+	FROM [gd_esquema].[Maestra] JOIN [APROBANDO].[direccion] d ON DIRECCION_USUARIO_DIRECCION = d.direccion
+	JOIN [APROBANDO].[usuario] r ON REPARTIDOR_DNI = r.dni
+	JOIN [APROBANDO].[pedido] p ON PEDIDO_NRO = p.nro_pedido
+	WHERE DIRECCION_USUARIO_DIRECCION IS NOT NULL AND REPARTIDOR_DNI IS NOT NULL AND PEDIDO_NRO IS NOT NULL
+
+	-- reclamo
+
+	INSERT INTO [APROBANDO].[reclamo] (nro_reclamo, usuario, pedido, tipo_de_reclamo, cupon, operador_codigo, descripcion, fecha_reclamo,
+	fecha_solucion, calificacion, solucion)
+	SELECT DISTINCT RECLAMO_NRO, u.usuario, p.pedido, tr.tipo_de_reclamo, c.cupon, o.operador_codigo, RECLAMO_DESCRIPCION, RECLAMO_FECHA_SOLUCION
+	FROM [gd_esquema].[Maestra] JOIN [APROBANDO].[usuario] u ON USUARIO_DNI = u.dni
+	JOIN [APROBANDO].[pedido] p ON PEDIDO_NRO = p.nro_pedido
+	JOIN [APROBANDO].[tipo_de_reclamo] tr ON RECLAMO_TIPO = tr.tipo_de_reclamo
+	JOIN [APROBANDO].[cupon] c ON CUPON_NRO = c.cupon_nro
+	JOIN [APROBANDO].[usuario] o ON OPERADOR_RECLAMO_DNI = o.dni
+	WHERE USUARIO_DNI IS NOT NULL AND PEDIDO_NRO IS NOT NULL AND RECLAMO_TIPO IS NOT NULL 
+	AND CUPON_NRO IS NOT NULL AND OPERADOR_RECLAMO_DNI IS NOT NULL
 
 
 END
