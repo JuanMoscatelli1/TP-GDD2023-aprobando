@@ -545,7 +545,7 @@ BEGIN
     JOIN [APROBANDO].[usuario] u ON USUARIO_DNI = u.dni
     WHERE USUARIO_DNI IS NOT NULL AND MEDIO_PAGO_NRO_TARJETA IS NOT NULL
 
-    -- tipo_estado
+    -- tipo estado reclamo
 
     INSERT INTO [APROBANDO].[tipo_estado_reclamo] (tipo_estado)
     SELECT DISTINCT RECLAMO_ESTADO
@@ -742,8 +742,10 @@ BEGIN
 	INSERT INTO [APROBANDO].[estado_de_reclamo] (reclamo_codigo, tipo_estado, fecha_estado)
 	SELECT DISTINCT r.reclamo_codigo, tr.tipo_estado_codigo, RECLAMO_FECHA
 	FROM [gd_esquema].[Maestra] JOIN [APROBANDO].[reclamo] r ON RECLAMO_NRO = r.nro_reclamo
-	JOIN [APROBANDO].[tipo_estado_reclamo] tr ON RECLAMO_TIPO = tr.tipo_estado
-	WHERE RECLAMO_NRO IS NOT NULL AND RECLAMO_TIPO IS NOT NULL AND RECLAMO_FECHA IS NOT NULL
+	LEFT JOIN [APROBANDO].[tipo_estado_reclamo] tr ON RECLAMO_ESTADO = tr.tipo_estado
+	WHERE RECLAMO_NRO IS NOT NULL AND RECLAMO_FECHA IS NOT NULL
+
+	select * from [APROBANDO].estado_de_reclamo
 
 	
 END
