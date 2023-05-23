@@ -228,9 +228,10 @@ CREATE TABLE [APROBANDO].[operador](
 
 
 CREATE TABLE [APROBANDO].[reclamo](
-		nro_reclamo DECIMAL(18,0) PRIMARY KEY,
+		reclamo_codigo INTEGER IDENTITY(1,1) PRIMARY KEY,
+		nro_reclamo DECIMAL(18,0),
 		usuario INTEGER REFERENCES [APROBANDO].[usuario],
-		pedido INTEGER REFERENCES [APROBANDO].[pedido],
+		pedido_codigo INTEGER REFERENCES [APROBANDO].[pedido],
 		tipo_de_reclamo INTEGER REFERENCES [APROBANDO].[tipo_de_reclamo],
 		operador_codigo INTEGER REFERENCES [APROBANDO].[operador],
 		cupon INTEGER REFERENCES [APROBANDO].[cupon],
@@ -248,8 +249,9 @@ CREATE TABLE [APROBANDO].[tipo_estado_reclamo](
 
 CREATE TABLE [APROBANDO].[estado_de_reclamo](
 		estado_reclamo_codigo INTEGER IDENTITY(1,1) PRIMARY KEY,
-		nro_reclamo DECIMAL(18,0) REFERENCES [APROBANDO].[reclamo],
-		tipo_estado INTEGER REFERENCES [APROBANDO].[tipo_estado_reclamo]
+		reclamo_codigo INTEGER REFERENCES [APROBANDO].[reclamo],
+		tipo_estado INTEGER REFERENCES [APROBANDO].[tipo_estado_reclamo],
+		fecha_estado DATETIME
 );
 
 CREATE TABLE [APROBANDO].[repartidor](
@@ -709,8 +711,6 @@ BEGIN
 
 	-- envio REVISAR DNI REPARTIDOR
 
-	select * from [APROBANDO].[direccion]
-
 	INSERT INTO [APROBANDO].[envio] (direccion, precio, propina, repartidor_codigo, nro_pedido)
 	SELECT DISTINCT d.direccion_codigo, PEDIDO_PRECIO_ENVIO, PEDIDO_PROPINA, rep.repartidor_codigo, p.pedido_codigo
 	FROM [gd_esquema].[Maestra] 
@@ -719,29 +719,39 @@ BEGIN
 	JOIN [APROBANDO].[local] lo on LOCAL_NOMBRE = lo.nombre
 	JOIN [APROBANDO].[pedido] p ON PEDIDO_NRO = p.nro_pedido AND lo.local_codigo = p.local_codigo
 	JOIN [APROBANDO].[localidad] l ON l.localidad = DIRECCION_USUARIO_LOCALIDAD
-	JOIN [APROBANDO].[direccion] d ON DIRECCION_USUARIO_DIRECCION = d.direccion AND DIRECCION_USUARIO_LOCALIDAD = l.localidad
+	JOIN [APROBANDO].[direccion] d ON d.direccion = DIRECCION_USUARIO_DIRECCION AND d.localidad_codigo = l.localidad_codigo
 	WHERE DIRECCION_USUARIO_DIRECCION IS NOT NULL AND REPARTIDOR_DNI IS NOT NULL AND PEDIDO_NRO IS NOT NULL
-	ORDER BY p.pedido_codigo
 
 	---- reclamo
+	
+	INSERT INTO [APROBANDO].[reclamo] (nro_reclamo, usuario, pedido_codigo, tipo_de_reclamo, operador_codigo, cupon,
+	descripcion, fecha_reclamo, fecha_solucion, calificacion, solucion)
+	SELECT DISTINCT RECLAMO_NRO, u.usuario_codigo, p.pedido_codigo, tr.tipo_reclamo_codigo, op.operador_codigo,
+	c.cupon_codigo, RECLAMO_DESCRIPCION, RECLAMO_FECHA, RECLAMO_FECHA_SOLUCION, RECLAMO_CALIFICACION, RECLAMO_SOLUCION
+	FROM [gd_esquema].[Maestra] JOIN [APROBANDO].[usuario] u ON USUARIO_DNI = u.dni
+	JOIN [APROBANDO].[pedido] p ON PEDIDO_NRO = p.nro_pedido
+	JOIN [APROBANDO].[tipo_de_reclamo] tr ON RECLAMO_TIPO = tr.tipo_de_reclamo
+	JOIN [APROBANDO].[usuario] o ON OPERADOR_RECLAMO_DNI = o.dni
+	JOIN [APROBANDO].[operador] op ON op.usuario_codigo = o.usuario_codigo
+	LEFT JOIN [APROBANDO].[cupon] c ON Maestra.CUPON_NRO = c.cupon_nro 
+	WHERE RECLAMO_NRO IS NOT NULL AND USUARIO_DNI IS NOT NULL AND PEDIDO_NRO IS NOT NULL AND RECLAMO_TIPO IS NOT NULL AND 
+	OPERADOR_RECLAMO_DNI IS NOT NULL
 
-	--INSERT INTO [APROBANDO].[reclamo] (nro_reclamo, usuario, pedido, tipo_de_reclamo, cupon, operador_codigo, descripcion, fecha_reclamo,
-	--fecha_solucion, calificacion, solucion)
-	--SELECT DISTINCT RECLAMO_NRO, u.usuario, p.pedido, tr.tipo_de_reclamo, c.cupon, o.operador_codigo, RECLAMO_DESCRIPCION, RECLAMO_FECHA_SOLUCION
-	--FROM [gd_esquema].[Maestra] JOIN [APROBANDO].[usuario] u ON USUARIO_DNI = u.dni
-	--JOIN [APROBANDO].[pedido] p ON PEDIDO_NRO = p.nro_pedido
-	--JOIN [APROBANDO].[tipo_de_reclamo] tr ON RECLAMO_TIPO = tr.tipo_de_reclamo
-	--JOIN [APROBANDO].[cupon] c ON CUPON_NRO = c.cupon_nro
-	--JOIN [APROBANDO].[usuario] o ON OPERADOR_RECLAMO_DNI = o.dni
-	--WHERE USUARIO_DNI IS NOT NULL AND PEDIDO_NRO IS NOT NULL AND RECLAMO_TIPO IS NOT NULL 
-	--AND CUPON_NRO IS NOT NULL AND OPERADOR_RECLAMO_DNI IS NOT NULL
+	-- estado de reclamo
 
+	INSERT INTO [APROBANDO].[estado_de_reclamo] (reclamo_codigo, tipo_estado, fecha_estado)
+	SELECT DISTINCT r.reclamo_codigo, tr.tipo_estado_codigo, RECLAMO_FECHA
+	FROM [gd_esquema].[Maestra] JOIN [APROBANDO].[reclamo] r ON RECLAMO_NRO = r.nro_reclamo
+	JOIN [APROBANDO].[tipo_estado_reclamo] tr ON RECLAMO_TIPO = tr.tipo_estado
+	WHERE RECLAMO_NRO IS NOT NULL AND RECLAMO_TIPO IS NOT NULL AND RECLAMO_FECHA IS NOT NULL
 
+	
 END
 GO
 
 EXEC [APROBANDO].[MIGRAR]
-GO
+GO	
+
 
 --select * from [gd_esquema].Maestra
 --order by PEDIDO_NRO
