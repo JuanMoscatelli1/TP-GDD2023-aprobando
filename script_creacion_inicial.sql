@@ -387,7 +387,7 @@ BEGIN
 		ON LOCAL_PROVINCIA = provincia
 		WHERE LOCAL_LOCALIDAD IS NOT NULL
 
-	--direccion(los repartidores y operadores tendrían el campo tipo de direccion y la localidad en null ya que no lo especifican)
+	--direccion(los repartidores y operadores tendrÃ­an el campo tipo de direccion y la localidad en null ya que no lo especifican)
 
 	INSERT INTO [APROBANDO].[direccion] (direccion,localidad_codigo)
 	SELECT DISTINCT DIRECCION_USUARIO_DIRECCION, localidad_codigo
@@ -745,7 +745,7 @@ BEGIN
 	LEFT JOIN [APROBANDO].[tipo_estado_reclamo] tr ON RECLAMO_ESTADO = tr.tipo_estado
 	WHERE RECLAMO_NRO IS NOT NULL AND RECLAMO_FECHA IS NOT NULL
 
-	select * from [APROBANDO].estado_de_reclamo
+	--select * from [APROBANDO].estado_de_reclamo
 
 	
 END
