@@ -582,7 +582,6 @@ BEGIN
 
 	-- categoria FALTA IMPLEMENTACION DE CATEGORIA (NO HAY NADA EN LA TABLA MAESTRA)
 
-	--select * from [APROBANDO].[tipo_local]
 
 	INSERT INTO [APROBANDO].[categoria] (tipo_local_codigo, categoria)
 	SELECT DISTINCT t.tipo_local_codigo,NULL
@@ -629,12 +628,8 @@ BEGIN
 	FROM [gd_esquema].[Maestra] 
 	WHERE PAQUETE_TIPO_PRECIO IS NOT NULL
 
-	--envio mensajeria (NO AGREGA NADA :()
+	--envio mensajeria 
 		
-	--select * from [gd_esquema].[Maestra] JOIN [APROBANDO].[usuario] u ON USUARIO_DNI = u.dni JOIN [APROBANDO].[tipo_medio_pago] tmp ON tmp.tipo_medio_pago = MEDIO_PAGO_TIPO
-	--JOIN [APROBANDO].[tarjeta] tar ON tar.numero = MEDIO_PAGO_NRO_TARJETA
-	--JOIN [APROBANDO].[medio_de_pago] mp ON mp.tipo_medio_pago + u.usuario_codigo + tar.tarjeta_codigo = tmp.t_medio_pago_codigo + mp.usuario_codigo + mp.tarjeta_codigo
-
 	INSERT INTO [APROBANDO].[envio_mensajeria] (nro_envio_msj,distancia_en_km,valor_asegurado,observaciones,precio_envio,
 		precio_seguro,propina,total,tiempo_estimado_entrega,fecha_hora_entrega,calificacion,usuario,tipo_paquete_codigo
 		,repartidor_codigo,medio_de_pago_codigo,direccion_origen,direccion_destino)
@@ -658,7 +653,7 @@ BEGIN
 	JOIN [APROBANDO].[direccion] dir1 ON dir1.direccion = ENVIO_MENSAJERIA_DIR_ORIG AND dir1.localidad_codigo = loc1.localidad_codigo
 	JOIN [APROBANDO].[direccion] dir2 ON dir2.direccion = ENVIO_MENSAJERIA_DIR_DEST AND dir2.localidad_codigo = loc1.localidad_codigo
 	WHERE USUARIO_DNI IS NOT NULL AND PAQUETE_TIPO IS NOT NULL AND REPARTIDOR_DNI IS NOT NULL AND MEDIO_PAGO_TIPO IS NOT NULL 
-	--JOIN [APROBANDO].[direccion] 
+
 
 	-- estado mensajeria
 	
@@ -756,29 +751,3 @@ GO
 EXEC [APROBANDO].[MIGRAR]
 GO	
 
-
---select * from [gd_esquema].Maestra
---order by PEDIDO_NRO
-
---select * from [APROBANDO].[pedido]
---order by nro_pedido
-
---select * from [APROBANDO].[localidad_por_repartidor]
---order by repartidor_codigo
-
---select * from [APROBANDO].[usuario]
-
---select d.direccion_codigo,d.tipo_direccion,d.usuario_codigo,dir.direccion,l.localidad from [APROBANDO].direccion_por_usuario d
---JOIN  [APROBANDO].[direccion] dir on d.direccion_codigo = dir.direccion_codigo
---JOIN [APROBANDO].[localidad] l on dir.localidad_codigo = l.localidad_codigo
---order by usuario_codigo
-
---select * from [APROBANDO].[direccion_por_usuario]
-
---select localidad, provincia_codigo from [APROBANDO].localidad
---group by localidad, provincia_codigo
---order by localidad
---select d.localidad_codigo,l.localidad from [APROBANDO].[direccion] d join [APROBANDO].[localidad] l on d.localidad_codigo = l.localidad_codigo
---where d.direccion = '25 de MAYO 2097'
-
---select * from [APROBANDO].[direccion]
