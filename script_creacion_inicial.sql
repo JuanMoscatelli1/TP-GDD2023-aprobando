@@ -75,32 +75,32 @@ CREATE TABLE [APROBANDO].[direccion](
 
 	CREATE TABLE [APROBANDO].[tipo_local] (
 		tipo_local_codigo INTEGER IDENTITY(1,1) PRIMARY KEY,
-		tipo_local NVARCHAR(50) 
+		tipo_local NVARCHAR(50) NOT NULL
 	);
 
 	CREATE TABLE [APROBANDO].[dia] (
 		dia_codigo INTEGER IDENTITY(1,1) PRIMARY KEY,
-		dia NVARCHAR(50)
+		dia NVARCHAR(50) NOT NULL
 	);
 
 	CREATE TABLE [APROBANDO].[tipo_estado_mensajeria] (
 		tipo_estado_mensajeria_codigo INTEGER IDENTITY(1,1) PRIMARY KEY,
-		tipo_estado NVARCHAR(50)
+		tipo_estado NVARCHAR(50) NOT NULL
 	);
 
 	CREATE TABLE [APROBANDO].[tipo_medio_pago] (
 		t_medio_pago_codigo INTEGER IDENTITY(1,1) PRIMARY KEY,
-		tipo_medio_pago NVARCHAR(50)
+		tipo_medio_pago NVARCHAR(50) NOT NULL		
 	);
 
 	CREATE TABLE [APROBANDO].[tipo_movilidad] (
 		movilidad_codigo INTEGER IDENTITY(1,1) PRIMARY KEY,
-		movilidad NVARCHAR(50)
+		movilidad NVARCHAR(50) NOT NULL
 	);
 
 	CREATE TABLE [APROBANDO].[tipo_paquete] (
 		tipo_paquete_codigo INTEGER IDENTITY(1,1) PRIMARY KEY,
-		tipo_paquete NVARCHAR(50),
+		tipo_paquete NVARCHAR(50) NOT NULL,
 		ancho_max DECIMAL(18,2),
 		largo_max DECIMAL(18,2),
 		alto_max DECIMAL(18,2),
@@ -122,35 +122,35 @@ CREATE TABLE [APROBANDO].[direccion](
 
 	CREATE TABLE [APROBANDO].[tipo_estado_pedido] (
 		t_estado_pedido_codigo INTEGER IDENTITY(1,1) PRIMARY KEY,
-		tipo_estado_pedido NVARCHAR(50)
+		tipo_estado_pedido NVARCHAR(50) NOT NULL
 	);
 
 
 	CREATE TABLE [APROBANDO].[tipo_de_reclamo](
 		tipo_reclamo_codigo INTEGER IDENTITY(1,1) PRIMARY KEY,
-		tipo_de_reclamo NVARCHAR(50)
+		tipo_de_reclamo NVARCHAR(50) NOT NULL
 	);
 
 	CREATE TABLE [APROBANDO].[tipo_cupon](
 		tipo_cupon_codigo INTEGER IDENTITY(1,1) PRIMARY KEY,
-		tipo_cupon NVARCHAR(50)
+		tipo_cupon NVARCHAR(50) NOT NULL
 	);
 
 	CREATE TABLE [APROBANDO].[tarjeta](
 		tarjeta_codigo INTEGER IDENTITY(1,1) PRIMARY KEY, 
-		numero NVARCHAR(50),
-		marca NVARCHAR(100)
+		numero NVARCHAR(50) NOT NULL,
+		marca NVARCHAR(100) NOT NULL
 	);
 
 		CREATE TABLE [APROBANDO].[tarjeta_por_usuario](
-		tarjeta_codigo INTEGER REFERENCES [APROBANDO].[tarjeta],
-		usuario_codigo INTEGER REFERENCES [APROBANDO].[usuario]
+		tarjeta_codigo INTEGER REFERENCES [APROBANDO].[tarjeta] NOT NULL,
+		usuario_codigo INTEGER REFERENCES [APROBANDO].[usuario] NOT NULL
 		PRIMARY KEY(tarjeta_codigo,usuario_codigo)
 	);
 
 	CREATE TABLE [APROBANDO].[medio_de_pago] (
 		medio_pago_codigo INTEGER IDENTITY(1,1) PRIMARY KEY,
-		tipo_medio_pago INTEGER REFERENCES [APROBANDO].[tipo_medio_pago],
+		tipo_medio_pago INTEGER REFERENCES [APROBANDO].[tipo_medio_pago] NOT NULL,
 		tarjeta_codigo INTEGER, 
 		usuario_codigo  INTEGER, 
 		FOREIGN KEY (tarjeta_codigo,usuario_codigo) REFERENCES [APROBANDO].[tarjeta_por_usuario](tarjeta_codigo,usuario_codigo) 
@@ -165,16 +165,16 @@ CREATE TABLE [APROBANDO].[direccion](
 CREATE TABLE [APROBANDO].[local] (
 		local_codigo INTEGER IDENTITY(1,1) PRIMARY KEY,
 		categoria INTEGER REFERENCES [APROBANDO].[categoria],
-		nombre NVARCHAR(255),
-		direccion INTEGER REFERENCES [APROBANDO].[direccion]
+		nombre NVARCHAR(255) NOT NULL,
+		direccion INTEGER REFERENCES [APROBANDO].[direccion] NOT NULL
 	);
 
 		CREATE TABLE [APROBANDO].[pedido](
 		pedido_codigo INTEGER IDENTITY(1,1) PRIMARY KEY,
-		nro_pedido DECIMAL(18,0),
-		usuario_codigo INTEGER REFERENCES [APROBANDO].[usuario],
-		local_codigo INTEGER REFERENCES [APROBANDO].[local],
-		medio_de_pago INTEGER REFERENCES [APROBANDO].[medio_de_pago],
+		nro_pedido DECIMAL(18,0) NOT NULL,
+		usuario_codigo INTEGER REFERENCES [APROBANDO].[usuario] NOT NULL,
+		local_codigo INTEGER REFERENCES [APROBANDO].[local] NOT NULL,
+		medio_de_pago INTEGER REFERENCES [APROBANDO].[medio_de_pago] NOT NULL,
 		fecha_pedido DATETIME,
 		tarifa_delivery DECIMAL(18,2),
 		total DECIMAL(18,2),
@@ -204,8 +204,8 @@ CREATE TABLE [APROBANDO].[horario_apertura] (
 
 
 CREATE TABLE [APROBANDO].[direccion_por_usuario](
-		direccion_codigo INTEGER REFERENCES [APROBANDO].[direccion],
-		usuario_codigo INTEGER REFERENCES [APROBANDO].[usuario],
+		direccion_codigo INTEGER REFERENCES [APROBANDO].[direccion] NOT NULL,
+		usuario_codigo INTEGER REFERENCES [APROBANDO].[usuario] NOT NULL,
 		tipo_direccion NVARCHAR(50),
 		PRIMARY KEY(direccion_codigo,usuario_codigo)
 );
@@ -217,9 +217,9 @@ CREATE TABLE [APROBANDO].[operador](
 
 	CREATE TABLE [APROBANDO].[cupon](
 		cupon_codigo INTEGER IDENTITY(1,1) PRIMARY KEY,
-		cupon_nro DECIMAL(18,0),
+		cupon_nro DECIMAL(18,0) NOT NULL,
 		tipo_cupon INTEGER REFERENCES [APROBANDO].[tipo_cupon],
-		usuario_codigo INTEGER REFERENCES [APROBANDO].[usuario],
+		usuario_codigo INTEGER REFERENCES [APROBANDO].[usuario] NOT NULL,
 		fecha_alta DATETIME,
 		fecha_vencimiento DATETIME,
 		usado BIT,
@@ -229,9 +229,9 @@ CREATE TABLE [APROBANDO].[operador](
 
 CREATE TABLE [APROBANDO].[reclamo](
 		reclamo_codigo INTEGER IDENTITY(1,1) PRIMARY KEY,
-		nro_reclamo DECIMAL(18,0),
-		usuario INTEGER REFERENCES [APROBANDO].[usuario],
-		pedido_codigo INTEGER REFERENCES [APROBANDO].[pedido],
+		nro_reclamo DECIMAL(18,0) NOT NULL,
+		usuario INTEGER REFERENCES [APROBANDO].[usuario] NOT NULL,
+		pedido_codigo INTEGER REFERENCES [APROBANDO].[pedido] NOT NULL,
 		tipo_de_reclamo INTEGER REFERENCES [APROBANDO].[tipo_de_reclamo],
 		operador_codigo INTEGER REFERENCES [APROBANDO].[operador],
 		cupon INTEGER REFERENCES [APROBANDO].[cupon],
@@ -244,27 +244,27 @@ CREATE TABLE [APROBANDO].[reclamo](
 
 CREATE TABLE [APROBANDO].[tipo_estado_reclamo](
 		tipo_estado_codigo INTEGER IDENTITY(1,1) PRIMARY KEY,
-		tipo_estado NVARCHAR(50)
+		tipo_estado NVARCHAR(50) NOT NULL
 );
 
 CREATE TABLE [APROBANDO].[estado_de_reclamo](
 		estado_reclamo_codigo INTEGER IDENTITY(1,1) PRIMARY KEY,
 		reclamo_codigo INTEGER REFERENCES [APROBANDO].[reclamo],
-		tipo_estado INTEGER REFERENCES [APROBANDO].[tipo_estado_reclamo],
+		tipo_estado INTEGER REFERENCES [APROBANDO].[tipo_estado_reclamo] NOT NULL,
 		fecha_estado DATETIME
 );
 
 CREATE TABLE [APROBANDO].[repartidor](
 		repartidor_codigo INTEGER IDENTITY(1,1) PRIMARY KEY,
-		usuario_codigo INTEGER REFERENCES [APROBANDO].[usuario],
+		usuario_codigo INTEGER REFERENCES [APROBANDO].[usuario] NOT NULL,
 		movilidad INTEGER REFERENCES [APROBANDO].[tipo_movilidad]
 	);
 
 
 CREATE TABLE [APROBANDO].[envio_mensajeria](
 		envio_msj_codigo INTEGER IDENTITY(1,1) PRIMARY KEY,
-		nro_envio_msj DECIMAL(18,0),
-		usuario INTEGER REFERENCES [APROBANDO].[usuario],
+		nro_envio_msj DECIMAL(18,0) NOT NULL,
+		usuario INTEGER REFERENCES [APROBANDO].[usuario] NOT NULL,
 		direccion_origen INTEGER REFERENCES [APROBANDO].[direccion],
 		direccion_destino INTEGER REFERENCES [APROBANDO].[direccion],
 		tipo_paquete_codigo INTEGER REFERENCES [APROBANDO].[tipo_paquete],
@@ -296,8 +296,8 @@ CREATE TABLE [APROBANDO].[envio](
 		direccion INTEGER REFERENCES [APROBANDO].[direccion],
 		precio DECIMAL(18,2),
 		propina DECIMAL(18,2),
-		repartidor_codigo INTEGER REFERENCES [APROBANDO].[repartidor],
-		nro_pedido INTEGER REFERENCES [APROBANDO].[pedido]
+		repartidor_codigo INTEGER REFERENCES [APROBANDO].[repartidor] NOT NULL,
+		nro_pedido INTEGER REFERENCES [APROBANDO].[pedido] NOT NULL
 );
 
 CREATE TABLE [APROBANDO].[producto_local] (
@@ -387,7 +387,7 @@ BEGIN
 		ON LOCAL_PROVINCIA = provincia
 		WHERE LOCAL_LOCALIDAD IS NOT NULL
 
-	--direccion(los repartidores y operadores tendrÃ­an el campo tipo de direccion y la localidad en null ya que no lo especifican)
+	--direccion(los repartidores y operadores tendrían el campo tipo de direccion y la localidad en null ya que no lo especifican)
 
 	INSERT INTO [APROBANDO].[direccion] (direccion,localidad_codigo)
 	SELECT DISTINCT DIRECCION_USUARIO_DIRECCION, localidad_codigo
@@ -597,6 +597,7 @@ BEGIN
 	JOIN [APROBANDO].[tipo_local] tl on LOCAL_TIPO = tl.tipo_local
 	JOIN [APROBANDO].[categoria] c on c.tipo_local_codigo = tl.tipo_local_codigo
 	WHERE LOCAL_DIRECCION IS NOT NULL
+	
 
 	-- horario apertura
 
@@ -671,7 +672,8 @@ BEGIN
 	
 	INSERT INTO [APROBANDO].[pedido] (nro_pedido,usuario_codigo, local_codigo, medio_de_pago, fecha_pedido, tarifa_delivery, total, observaciones,
 	tiempo_estimado_entrega, fecha_entrga, calificacion)
-	SELECT DISTINCT PEDIDO_NRO,u.usuario_codigo, l.local_codigo, mp.medio_pago_codigo, PEDIDO_FECHA, PEDIDO_TARIFA_SERVICIO, PEDIDO_TOTAL_SERVICIO, PEDIDO_OBSERV,
+	SELECT DISTINCT PEDIDO_NRO,u.usuario_codigo, l.local_codigo, mp.medio_pago_codigo, PEDIDO_FECHA, PEDIDO_TARIFA_SERVICIO,
+	PEDIDO_TOTAL_SERVICIO + PEDIDO_TOTAL_PRODUCTOS + PEDIDO_PRECIO_ENVIO + PEDIDO_PROPINA - PEDIDO_TOTAL_CUPONES, PEDIDO_OBSERV,
 	PEDIDO_TIEMPO_ESTIMADO_ENTREGA, PEDIDO_FECHA_ENTREGA, PEDIDO_CALIFICACION
 	FROM [gd_esquema].[Maestra] JOIN [APROBANDO].[usuario] u ON USUARIO_DNI = u.dni
 	JOIN [APROBANDO].[local] l ON LOCAL_NOMBRE = l.nombre
@@ -745,7 +747,7 @@ BEGIN
 	LEFT JOIN [APROBANDO].[tipo_estado_reclamo] tr ON RECLAMO_ESTADO = tr.tipo_estado
 	WHERE RECLAMO_NRO IS NOT NULL AND RECLAMO_FECHA IS NOT NULL
 
-	--select * from [APROBANDO].estado_de_reclamo
+	
 
 	
 END
