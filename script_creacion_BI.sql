@@ -63,8 +63,119 @@ ALTER PROCEDURE [APROBANDO].[MIGRAR_BI]
 AS
 BEGIN
 
+CREATE TABLE [APROBANDO].[BI_tiempo] (
+	fecha NVARCHAR(7) IDENTITY(1,1) PRIMARY KEY,
+	anio NVARCHAR(4),
+	mes NVARCHAR(2)
+	)
+
+CREATE TABLE [APROBANDO].[BI_provincia] (
+	provincia_codigo INTEGER IDENTITY(1,1) PRIMARY KEY,
+	provincia NVARCHAR(255)
+	)
+
+CREATE TABLE [APROBANDO].[BI_localidad] (
+	localidad_codigo INTEGER IDENTITY(1,1) PRIMARY KEY,
+	localidad NVARCHAR(255),
+	provincia_codigo INTEGER REFERENCES [APROBANDO].[BI_provincia]
+	)
+
+CREATE TABLE [APROBANDO].[BI_tipo_local] (
+	tipo_local_codigo INTEGER IDENTITY(1,1) PRIMARY KEY,
+	tipo_local NVARCHAR(50)
+	)
+
+CREATE TABLE [APROBANDO].[BI_local] (
+	local_codigo INTEGER IDENTITY(1,1) PRIMARY KEY,
+	local INTEGER,
+	tipo_local_codigo INTEGER REFERENCES [APROBANDO].[BI_tipo_local],
+	localidad_codigo INTEGER REFERENCES [APROBANDO].[BI_localidad]
+	)
+
+CREATE TABLE [APROBANDO].[BI_categoria] (
+	categoria_codigo INTEGER IDENTITY(1,1) PRIMARY KEY,
+	categoria NVARCHAR(50),
+	tipo_local_codigo INTEGER REFERENCES [APROBANDO].[BI_tipo_local]
+	)
+
+CREATE TABLE [APROBANDO].[BI_rango_etario] (
+	rango_id INTEGER PRIMARY KEY,
+	rango NVARCHAR(50)
+	)
+
+CREATE TABLE [APROBANDO].[BI_tipo_movilidad] (
+	movilidad_codigo INTEGER IDENTITY(1,1) PRIMARY KEY,
+	movilidad NVARCHAR(50)
+	)
+
+CREATE TABLE [APROBANDO].[BI_tipo_estado_mensajeria] (
+	tipo_estado_mensajeria_codigo INTEGER IDENTITY(1,1) PRIMARY KEY,
+	tipo_estado NVARCHAR(50)
+	)
+
+CREATE TABLE [APROBANDO].[BI_tipo_paquete] (
+	tipo_paquete_codigo INTEGER IDENTITY(1,1) PRIMARY KEY,
+	ancho_max DECIMAL(18,2),
+	largo_max DECIMAL(18,2),
+	alto_max DECIMAL(18,2),
+	peso_max DECIMAL(18,2),
+	precio DECIMAL(18,2),
+	tipo_paquete NVARCHAR(50)
+	)
+
+CREATE TABLE [APROBANDO].[BI_tipo_de_reclamo] (
+	tipo_reclamo_codigo INTEGER IDENTITY(1,1) PRIMARY KEY,
+	tipo_de_reclamo NVARCHAR(50)
+	)
+
+CREATE TABLE [APROBANDO].[BI_tipo_estado_reclamo] (
+	tipo_estado_codigo INTEGER IDENTITY(1,1) PRIMARY KEY,
+	tipo_estado NVARCHAR(50)
+	)
+
+CREATE TABLE [APROBANDO].[BI_dia] (
+	dia_codigo INTEGER IDENTITY(1,1) PRIMARY KEY,
+	dia NVARCHAR(50)
+	)
+
+CREATE TABLE [APROBANDO].[BI_tipo_medio_pago] (
+	medio_pago_codigo INTEGER IDENTITY(1,1) PRIMARY KEY,
+	tipo_medio_pago NVARCHAR(50)
+	)
+
+CREATE TABLE [APROBANDO].[BI_tipo_estado_pedido] (
+	t_estado_pedido_codigo INTEGER IDENTITY(1,1) PRIMARY KEY,
+	tipo_estado_pedido NVARCHAR(50)
+	)
+
+CREATE TABLE [APROBANDO].[BI_rango_horario] (
+	rango_id INTEGER PRIMARY KEY,
+	hora_inicial NVARCHAR(50),
+	hora_final NVARCHAR(50)
+	)
+
+-- Hechos:
+
+CREATE TABLE [APROBANDO].[BI_hecho_pedido](
+	hecho_pedido_codigo INTEGER IDENTITY(1,1),
+	tipo_estado_codigo INTEGER REFERENCES [APROBANDO].[BI_tipo_estado_pedido],
+	dia_codigo INTEGER REFERENCES [APROBANDO].[BI_dia],    
+	rango_horario_codigo INTEGER REFERENCES [APROBANDO].[BI_rango_horario],
+	local_codigo INTEGER REFERENCES [APROBANDO].[BI_local],
+	fecha NVARCHAR(7)REFERENCES [APROBANDO].[BI_tiempo],
+	medio_pago_codigo INTEGER REFERENCES [APROBANDO].[BI_tipo_medio_pago],
+	rango_etario_codigo INTEGER REFERENCES [APROBANDO].[BI_rango_etario],
+	monto DECIMAL(8,2),
+	calificacion DECIMAL(18,0),
+	monto_cupones DECIMAL(18,0),
+	PRIMARY KEY(hecho_pedido_codigo, tipo_estado_codigo, dia_codigo, rango_horario_codigo, local_codigo,fecha, medio_pago_codigo, rango_etario_codigo)
+	)
+
+
 END
 GO
 
 EXEC [APROBANDO].[MIGRAR_BI]
 GO
+
+
