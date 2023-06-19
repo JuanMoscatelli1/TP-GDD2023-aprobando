@@ -72,7 +72,7 @@ CREATE TABLE [APROBANDO].[BI_tipo_local] (
 
 CREATE TABLE [APROBANDO].[BI_local] (
 	local_codigo INTEGER IDENTITY(1,1) PRIMARY KEY,
-	local INTEGER,
+	nombre NVARCHAR(255),
 	tipo_local_codigo INTEGER REFERENCES [APROBANDO].[BI_tipo_local],
 	localidad_codigo INTEGER REFERENCES [APROBANDO].[BI_localidad]
 	)
@@ -134,9 +134,9 @@ CREATE TABLE [APROBANDO].[BI_tipo_estado_pedido] (
 	)
 
 CREATE TABLE [APROBANDO].[BI_rango_horario] (
-	rango_id INTEGER PRIMARY KEY,
-	hora_inicial NVARCHAR(50),
-	hora_final NVARCHAR(50)
+	rango_id INTEGER IDENTITY(1,1) PRIMARY KEY,
+	hora_inicial TIME,
+	hora_final TIME
 	)
 
 -- Hechos:
@@ -302,8 +302,36 @@ BEGIN
 	INSERT INTO [APROBANDO].[BI_rango_etario] (rango)
 	values ('< a 25'),('25 - 35'),('35-55'),('>55')
 
-	--BI_
+	--BI_local
 
+	INSERT INTO [APROBANDO].[BI_local](nombre,tipo_local_codigo,localidad_codigo)
+	(select l.nombre,bitl.tipo_local_codigo,biloc.localidad_codigo from [APROBANDO].[local] l
+	JOIN [APROBANDO].[categoria] c on l.categoria = c.categoria_codigo
+	JOIN [APROBANDO].[tipo_local] tl on tl.tipo_local_codigo = c.tipo_local_codigo
+	JOIN [APROBANDO].[BI_tipo_local] bitl on bitl.tipo_local = tl.tipo_local
+	JOIN [APROBANDO].[direccion] dir on dir.direccion_codigo = l.direccion
+	JOIN [APROBANDO].[localidad] loc on loc.localidad_codigo = dir.localidad_codigo
+	JOIN [APROBANDO].[provincia] prov on loc.provincia_codigo = prov.provincia_codigo
+	JOIN [APROBANDO].[BI_provincia] biprov on biprov.provincia = prov.provincia
+	JOIN [APROBANDO].[BI_localidad] biloc on loc.localidad = biloc.localidad and biloc.provincia_codigo = biprov.provincia_codigo
+	)
+
+	--BI_rango_horario
+
+	 INSERT INTO [APROBANDO].[BI_rango_horario] (hora_inicial,hora_final) 
+	 VALUES ('08:00:00','10:00:00'),
+	 ('10:00:00','12:00:00'),
+	 ('12:00:00','14:00:00'),
+	 ('14:00:00','16:00:00'),
+	 ('16:00:00','18:00:00'),
+	 ('18:00:00','20:00:00'),
+	 ('20:00:00','22:00:00'),
+	 ('22:00:00','00:00:00')
+
+
+	 --HECHOS 
+
+	
 
 END
 GO
@@ -312,6 +340,7 @@ EXEC [APROBANDO].[MIGRAR_BI]
 GO
 
 /*
+
 
 select * from gd_esquema.Maestra
 
@@ -336,4 +365,9 @@ select * from [APROBANDO].[categoria]
 select * from [APROBANDO].[BI_categoria]
 
 select * from [APROBANDO].[BI_rango_etario]
+
+select * from [APROBANDO].[BI_local]
+
+select * from [APROBANDO].[BI_rango_horario]
+
 */
