@@ -670,7 +670,32 @@ como los de mensajería.
 El porcentaje se calcula en función del total general de pedidos y envíos
 mensuales entregados. */
 
---TODO
+
+IF EXISTS(SELECT 1 FROM sys.views WHERE name='PORCENTAJES_PEDIDOS_Y_MENSAJERIA' AND type='v')
+	DROP VIEW [APROBANDO].[PORCENTAJES_PEDIDOS_Y_MENSAJERIA]
+GO
+
+
+CREATE VIEW [APROBANDO].[PORCENTAJES_PEDIDOS_Y_MENSAJERIA] AS
+SELECT rango_etario_menor,rango_etario_mayor, localidad, mes, anio, 
+    (COUNT(*) * 100.0) / SUM(COUNT(*)) OVER (PARTITION BY mes,anio) AS porcentaje_entregados
+FROM (
+	SELECT re.rango_menor as rango_etario_menor ,re.rango_mayor as rango_etario_mayor
+	,lo.localidad as localidad,ti.mes as mes ,ti.anio as anio 
+	FROM [APROBANDO].[BI_hecho_envio] he
+	JOIN [APROBANDO].[BI_rango_etario] re on he.rango_etario_codigo = re.rango_id
+	JOIN [APROBANDO].[BI_localidad] lo on he.localidad_codigo = lo.localidad_codigo
+	JOIN [APROBANDO].[BI_tiempo] ti on ti.fecha = he.fecha
+	UNION ALL
+	SELECT re.rango_menor as rango_etario_menor ,re.rango_mayor as rango_etario_mayor
+	,lo.localidad as localidad,ti.mes as mes ,ti.anio as anio
+	FROM [APROBANDO].[BI_hecho_envio_mensajeria] em
+	JOIN [APROBANDO].[BI_rango_etario] re on em.rango_etario_codigo = re.rango_id
+	JOIN [APROBANDO].[BI_localidad] lo on em.localidad_codigo = lo.localidad_codigo
+	JOIN [APROBANDO].[BI_tiempo] ti on ti.fecha = em.fecha
+)AS subquery
+GROUP BY rango_etario_menor,rango_etario_mayor, localidad, mes, anio
+GO
 
 --8 
 
@@ -687,66 +712,55 @@ SELECT AVG(hm.valor_asegurado) as 'promedio val asegurado',t.mes,t.anio,tp.tipo_
 JOIN [APROBANDO].[BI_tipo_paquete] tp on hm.tipo_paquete_codigo = tp.tipo_paquete_codigo
 JOIN [APROBANDO].[BI_tiempo] t on hm.fecha = t.fecha
 GROUP BY tp.tipo_paquete, t.anio,t.mes
+GO
+--9
 
-/* select vistas
+/* Cantidad de reclamos mensuales recibidos por cada local en función del
+día de la semana y rango horario. */
 
- select * from [APROBANDO].[CANTIDAD_PEDIDOS]
+ IF EXISTS(SELECT 1 FROM sys.views WHERE name='CANTIDAD_RECLAMOS_MENSUALES' AND type='v')
+	DROP VIEW [APROBANDO].[CANTIDAD_RECLAMOS_MENSUALES]
+GO
 
- select * from [APROBANDO].[MONTO_NO_COBRADO]
-
- select * from [APROBANDO].[VALOR_PROMEDIO_MENSUAL]
-
- select * from [APROBANDO].[DESVIO_TIEMPO_ENTREGA]
-
- select * from [APROBANDO].[MONTO_TOTAL_CUPONES]
-
- select * from [APROBANDO].[CALIFICACION_MENSUAL]
+CREATE VIEW [APROBANDO].[CANTIDAD_RECLAMOS_MENSUALES] AS 
+SELECT COUNT(*) as 'cantidad reclamos',d.dia,rh.hora_inicial,rh.hora_final,t.mes,t.anio FROM [APROBANDO].[BI_hecho_reclamo] r 
+JOIN [APROBANDO].[BI_dia] d on d.dia_codigo = r.dia_codigo
+JOIN [APROBANDO].[BI_rango_horario] rh on rh.rango_id = r.rango_horario_codigo
+JOIN [APROBANDO].[BI_tiempo] t on t.fecha = r.fecha
+GROUP BY d.dia,rh.hora_inicial,rh.hora_final,t.mes,t.anio
+GO
 
 
-*/
+--10 
 
-/*
-select * from [APROBANDO].[reclamo]
+/* Tiempo promedio de resolución de reclamos mensual según cada tipo de
+reclamo y rango etario de los operadores.
+El tiempo de resolución debe calcularse en minutos y representa la
+diferencia entre la fecha/hora en que se realizó el reclamo y la fecha/hora
+que se resolvió. */ 
 
-select * from [APROBANDO].[BI_hecho_envio_mensajeria]
+IF EXISTS(SELECT 1 FROM sys.views WHERE name='TIEMPO_PROMEDIO_RECLAMOS' AND type='v')
+	DROP VIEW [APROBANDO].[TIEMPO_PROMEDIO_RECLAMOS]
+GO
 
-select * from [APROBANDO].[envio_mensajeria]
-join [APROBANDO].[direccion] on direccion_origen = direccion_codigo
+CREATE VIEW [APROBANDO].[TIEMPO_PROMEDIO_RECLAMOS] AS 
+	SELECT AVG(r.tiempo_resolucion) as 'tiempo resolucion',tr.tipo_de_reclamo,t.mes,t.anio,re.rango_menor,re.rango_mayor FROM [APROBANDO].[BI_hecho_reclamo] r
+	JOIN [APROBANDO].[BI_tipo_de_reclamo] tr on r.tipo_reclamo_codigo = tr.tipo_reclamo_codigo
+	JOIN [APROBANDO].[BI_tiempo] t on t.fecha = r.fecha
+	JOIN [APROBANDO].[BI_rango_etario] re on re.rango_id = r.rango_etario_codigo
+	GROUP BY tr.tipo_de_reclamo,t.mes,t.anio,re.rango_menor,re.rango_mayor 
+GO
 
-select * from [APROBANDO].[BI_hecho_pedido]
+--11 
 
-select * from [APROBANDO].[cupon_canjeado]
+/*  Monto mensual generado en cupones a partir de reclamos */
 
-select * from [APROBANDO].[BI_hecho_pedido]
+IF EXISTS(SELECT 1 FROM sys.views WHERE name='MONTO_CUPONES_RECLAMOS' AND type='v')
+	DROP VIEW [APROBANDO].[MONTO_CUPONES_RECLAMOS]
+GO
 
-select * from [APROBANDO].[BI_dia]
-
-select * from gd_esquema.Maestra
-
-select * from [APROBANDO].[BI_provincia]
-
-select * from [APROBANDO].[BI_localidad]
-
-select * from [APROBANDO].[BI_tipo_movilidad]
-
-select * from [APROBANDO].[BI_tipo_local]
-
-select * from [APROBANDO].[BI_tipo_estado_mensajeria]
-
-select * from [APROBANDO].[BI_tipo_paquete]
-
-select * from [APROBANDO].[BI_tipo_de_reclamo]
-
-select * from [APROBANDO].[BI_tipo_estado_reclamo]
-
-select * from [APROBANDO].[categoria]
-
-select * from [APROBANDO].[BI_categoria]
-
-select * from [APROBANDO].[BI_rango_etario]
-
-select * from [APROBANDO].[BI_local]
-
-select * from [APROBANDO].[BI_rango_horario]
-
-*/
+CREATE VIEW [APROBANDO].[MONTO_CUPONES_RECLAMOS] AS
+	SELECT SUM(r.monto_en_cupon) as 'monto por cupones',t.mes,t.anio FROM [APROBANDO].[BI_hecho_reclamo] r
+	JOIN [APROBANDO].[BI_tiempo] t on t.fecha = r.fecha
+	GROUP BY t.mes,t.anio
+GO
