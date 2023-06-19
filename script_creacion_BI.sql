@@ -375,7 +375,7 @@ BEGIN
 	DATEDIFF(YEAR,u.fecha_de_nacimiento,GETDATE()) >= bire.rango_menor 
 	and DATEDIFF(YEAR,u.fecha_de_nacimiento,GETDATE()) <= bire.rango_mayor
 	)
-
+	
 	--hecho envio_mensajeria
 
 	INSERT INTO [APROBANDO].[BI_hecho_envio_mensajeria]
@@ -424,6 +424,74 @@ BEGIN
 	JOIN [APROBANDO].[BI_tipo_medio_pago] bitmp on bitmp.tipo_medio_pago = tmp.tipo_medio_pago
 	)
 
+	--hecho reclamo
+
+	INSERT INTO [APROBANDO].[BI_hecho_reclamo] 
+	(dia_codigo,rango_horario_codigo,local_codigo,tipo_reclamo_codigo,
+	rango_etario_codigo,fecha,tipo_estado_codigo,
+	tiempo_resolucion,monto_en_cupon)
+
+	(select bidia.dia_codigo, birh.rango_id, l.local_codigo,bitr.tipo_reclamo_codigo,
+	bire.rango_id,ti.fecha, biter.tipo_estado_codigo,
+	DATEDIFF(minute, r.fecha_reclamo, r.fecha_solucion), c.monto
+	 
+	from [APROBANDO].[reclamo] r
+	JOIN [APROBANDO].[BI_dia] bidia on bidia.dia = 
+		case DATEPART(WEEKDAY,r.fecha_reclamo)
+			WHEN 1 THEN 'Domingo'
+			WHEN 2 THEN 'Lunes'
+			WHEN 3 THEN 'Martes'
+			WHEN 4 THEN 'Miercoles'
+			WHEN 5 THEN 'Jueves'
+			WHEN 6 THEN 'Viernes'
+			WHEN 7 THEN 'Sabado'  
+		end
+	JOIN [APROBANDO].[BI_rango_horario] birh on
+	convert(time,r.fecha_reclamo) <= birh.hora_final and 
+	convert(time,r.fecha_reclamo) >= birh.hora_inicial
+	JOIN [APROBANDO].[pedido] p on r.pedido_codigo = p.pedido_codigo
+	JOIN [APROBANDO].[local] l on l.local_codigo = p.local_codigo
+	JOIN [APROBANDO].[BI_local] bil on l.nombre = bil.nombre
+	JOIN [APROBANDO].[tipo_de_reclamo] tr on tr.tipo_reclamo_codigo = r.tipo_de_reclamo
+	JOIN [APROBANDO].[BI_tipo_de_reclamo] bitr on bitr.tipo_de_reclamo = tr.tipo_de_reclamo
+	JOIN [APROBANDO].[operador] o on o.operador_codigo = r.operador_codigo
+	JOIN [APROBANDO].[usuario] u on u.usuario_codigo = o.usuario_codigo
+	JOIN [APROBANDO].[BI_rango_etario] bire on 
+	DATEDIFF(YEAR,u.fecha_de_nacimiento,GETDATE()) >= bire.rango_menor 
+	and DATEDIFF(YEAR,u.fecha_de_nacimiento,GETDATE()) <= bire.rango_mayor
+	JOIN [APROBANDO].[BI_tiempo] ti on ti.anio = YEAR(r.fecha_reclamo) and ti.mes = MONTH(r.fecha_reclamo)
+	JOIN [APROBANDO].[estado_de_reclamo] er on er.reclamo_codigo = r.reclamo_codigo
+	JOIN [APROBANDO].[tipo_estado_reclamo] ter on ter.tipo_estado_codigo = er.tipo_estado
+	JOIN [APROBANDO].[BI_tipo_estado_reclamo] biter on biter.tipo_estado = ter.tipo_estado
+	JOIN [APROBANDO].[cupon] c on c.cupon_codigo = r.cupon
+	)
+
+	--hecho envio
+
+	INSERT INTO [APROBANDO].[BI_hecho_envio] 
+	(fecha,tipo_movilidad_codigo,localidad_codigo,rango_etario_codigo,
+	monto,tiempo_entrega)
+	(
+	select ti.fecha, bitm.movilidad_codigo, biloc.localidad_codigo,bire.rango_id,
+	e.precio+e.propina, DATEDIFF(minute, p.fecha_pedido, p.fecha_entrga) 
+	
+	from [APROBANDO].[envio] e
+	JOIN [APROBANDO].[pedido] p on	p.pedido_codigo = e.nro_pedido
+	JOIN [APROBANDO].[BI_tiempo] ti on ti.anio = YEAR(p.fecha_pedido) and ti.mes = MONTH(p.fecha_pedido)
+	JOIN [APROBANDO].[repartidor] r on r.repartidor_codigo = e.repartidor_codigo
+	JOIN [APROBANDO].[tipo_movilidad] tm on tm.movilidad_codigo = r.movilidad
+	JOIN [APROBANDO].[BI_tipo_movilidad] bitm on bitm.movilidad = tm.movilidad
+	JOIN [APROBANDO].[direccion] dir on dir.direccion_codigo = e.direccion
+	JOIN [APROBANDO].[localidad] loc on loc.localidad_codigo = dir.localidad_codigo
+	JOIN [APROBANDO].[provincia] prov on prov.provincia_codigo = loc.provincia_codigo
+	JOIN [APROBANDO].[BI_provincia] biprov on biprov.provincia = prov.provincia
+	JOIN [APROBANDO].[BI_localidad] biloc on  biloc.localidad = loc.localidad and biloc.provincia_codigo = biprov.provincia_codigo 
+	JOIN [APROBANDO].[usuario] u on u.usuario_codigo = r.usuario_codigo
+	JOIN [APROBANDO].[BI_rango_etario] bire on 
+	DATEDIFF(YEAR,u.fecha_de_nacimiento,GETDATE()) >= bire.rango_menor 
+	and DATEDIFF(YEAR,u.fecha_de_nacimiento,GETDATE()) <= bire.rango_mayor
+	)
+
 END
 GO
 
@@ -431,8 +499,9 @@ EXEC [APROBANDO].[MIGRAR_BI]
 GO
 
 /*
+select * from [APROBANDO].[reclamo]
 
-select * from [APROBANDO].[BI_hecho_envio_mensajeria]
+select * from [APROBANDO].[BI_hecho_envio]
 
 select * from [APROBANDO].[envio_mensajeria]
 join [APROBANDO].[direccion] on direccion_origen = direccion_codigo

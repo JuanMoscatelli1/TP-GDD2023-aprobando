@@ -742,7 +742,7 @@ BEGIN
 	JOIN [APROBANDO].[tipo_de_reclamo] tr ON RECLAMO_TIPO = tr.tipo_de_reclamo
 	JOIN [APROBANDO].[usuario] o ON OPERADOR_RECLAMO_DNI = o.dni
 	JOIN [APROBANDO].[operador] op ON op.usuario_codigo = o.usuario_codigo
-	LEFT JOIN [APROBANDO].[cupon] c ON Maestra.CUPON_NRO = c.cupon_nro 
+	LEFT JOIN [APROBANDO].[cupon] c ON Maestra.CUPON_RECLAMO_NRO= c.cupon_nro 
 	WHERE RECLAMO_NRO IS NOT NULL AND USUARIO_DNI IS NOT NULL AND PEDIDO_NRO IS NOT NULL AND RECLAMO_TIPO IS NOT NULL AND 
 	OPERADOR_RECLAMO_DNI IS NOT NULL
 
