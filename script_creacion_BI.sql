@@ -85,7 +85,8 @@ CREATE TABLE [APROBANDO].[BI_categoria] (
 
 CREATE TABLE [APROBANDO].[BI_rango_etario] (
 	rango_id INTEGER IDENTITY (1,1) PRIMARY KEY,
-	rango NVARCHAR(50)
+	rango_menor INT,
+	rango_mayor INT
 	)
 
 CREATE TABLE [APROBANDO].[BI_tipo_movilidad] (
@@ -299,8 +300,8 @@ BEGIN
 
 	--BI_rango_etario
 
-	INSERT INTO [APROBANDO].[BI_rango_etario] (rango)
-	values ('< a 25'),('25 - 35'),('35-55'),('>55')
+	INSERT INTO [APROBANDO].[BI_rango_etario] (rango_menor,rango_mayor)
+	values (0,25),(25,35),(35,55),(55,150)
 
 	--BI_local
 
@@ -326,12 +327,102 @@ BEGIN
 	 ('16:00:00','18:00:00'),
 	 ('18:00:00','20:00:00'),
 	 ('20:00:00','22:00:00'),
-	 ('22:00:00','00:00:00')
+	 ('22:00:00','23:59:59')
 
 
 	 --HECHOS 
 
+	--hecho pedido 
 	
+	INSERT INTO [APROBANDO].[BI_hecho_pedido] 
+	(tipo_estado_codigo,dia_codigo,rango_horario_codigo,
+	local_codigo,fecha,medio_pago_codigo,rango_etario_codigo,
+	monto,calificacion,monto_cupones)
+
+	(select bite.t_estado_pedido_codigo, bidia.dia_codigo, birh.rango_id,
+	bil.local_codigo,ti.fecha,bitmp.medio_pago_codigo, bire.rango_id,
+	p.total,p.calificacion,
+	(select isnull(SUM(cc.importe),0) from cupon_canjeado cc
+	where p.pedido_codigo = cc.pedido_codigo
+	)
+
+
+	from [APROBANDO].[pedido] p 
+	JOIN [APROBANDO].[estado_pedido] e on e.nro_pedido = p.pedido_codigo
+	JOIN [APROBANDO].[tipo_estado_pedido] te on e.tipo_estado = te.t_estado_pedido_codigo
+	JOIN [APROBANDO].[BI_tipo_estado_pedido] bite on bite.tipo_estado_pedido = te.tipo_estado_pedido
+	JOIN [APROBANDO].[BI_dia] bidia on bidia.dia = 
+		case DATEPART(WEEKDAY,p.fecha_pedido)
+			WHEN 1 THEN 'Domingo'
+			WHEN 2 THEN 'Lunes'
+			WHEN 3 THEN 'Martes'
+			WHEN 4 THEN 'Miercoles'
+			WHEN 5 THEN 'Jueves'
+			WHEN 6 THEN 'Viernes'
+			WHEN 7 THEN 'Sabado'  
+		end
+	JOIN [APROBANDO].[BI_rango_horario] birh on
+	convert(time,p.fecha_pedido) <= birh.hora_final and 
+	convert(time,p.fecha_pedido) >= birh.hora_inicial
+	JOIN [APROBANDO].[local] l on l.local_codigo = p.local_codigo
+	JOIN [APROBANDO].[BI_local] bil on l.nombre = bil.nombre
+	JOIN [APROBANDO].[BI_tiempo] ti on ti.anio = YEAR(p.fecha_pedido) and ti.mes = MONTH(p.fecha_pedido)
+	JOIN [APROBANDO].[medio_de_pago] mp on mp.medio_pago_codigo = p.medio_de_pago
+	JOIN [APROBANDO].[tipo_medio_pago] tmp on tmp.t_medio_pago_codigo = mp.tipo_medio_pago
+	JOIN [APROBANDO].[BI_tipo_medio_pago] bitmp on bitmp.tipo_medio_pago = tmp.tipo_medio_pago
+	JOIN [APROBANDO].[usuario] u on u.usuario_codigo = p.usuario_codigo
+	JOIN [APROBANDO].[BI_rango_etario] bire on 
+	DATEDIFF(YEAR,u.fecha_de_nacimiento,GETDATE()) >= bire.rango_menor 
+	and DATEDIFF(YEAR,u.fecha_de_nacimiento,GETDATE()) <= bire.rango_mayor
+	)
+
+	--hecho envio_mensajeria
+
+	INSERT INTO [APROBANDO].[BI_hecho_envio_mensajeria]
+	(fecha,rango_horario_codigo,dia_codigo,tipo_movilidad_codigo,
+	localidad_codigo,rango_etario_codigo,tipo_paquete_codigo,tipo_estado_msj_codigo,medio_pago_codigo,
+	monto,valor_asegurado)
+
+	(select ti.fecha, birh.rango_id, bidia.dia_codigo, bitim.movilidad_codigo,
+			biloc.localidad_codigo, bire.rango_id, bitp.tipo_paquete_codigo,bitem.tipo_estado_mensajeria_codigo,bitmp.medio_pago_codigo, 
+			e.total,e.valor_asegurado  
+	
+	from [APROBANDO].[envio_mensajeria] e 
+	JOIN [APROBANDO].[BI_tiempo] ti on ti.anio = YEAR(e.fecha_envio_msj) and ti.mes = MONTH(e.fecha_envio_msj)
+	JOIN [APROBANDO].[BI_rango_horario] birh on
+	convert(time,e.fecha_envio_msj) <= birh.hora_final and 
+	convert(time,e.fecha_envio_msj) >= birh.hora_inicial
+	JOIN [APROBANDO].[BI_dia] bidia on bidia.dia = 
+		case DATEPART(WEEKDAY,e.fecha_envio_msj)
+			WHEN 1 THEN 'Domingo'
+			WHEN 2 THEN 'Lunes'
+			WHEN 3 THEN 'Martes'
+			WHEN 4 THEN 'Miercoles'
+			WHEN 5 THEN 'Jueves'
+			WHEN 6 THEN 'Viernes'
+			WHEN 7 THEN 'Sabado'  
+		end
+	JOIN [APROBANDO].[repartidor] rep on rep.repartidor_codigo = e.repartidor_codigo
+	JOIN [APROBANDO].[tipo_movilidad] tim on tim.movilidad_codigo = rep.movilidad
+	JOIN [APROBANDO].[BI_tipo_movilidad] bitim on bitim.movilidad = tim.movilidad
+	JOIN [APROBANDO].[direccion] dir on dir.direccion_codigo = e.direccion_origen
+	JOIN [APROBANDO].[localidad] loc on loc.localidad_codigo = dir.localidad_codigo
+	JOIN [APROBANDO].[provincia] prov on prov.provincia_codigo = loc.provincia_codigo
+	JOIN [APROBANDO].[BI_provincia] biprov on biprov.provincia = prov.provincia
+	JOIN [APROBANDO].[BI_localidad] biloc on  biloc.localidad = loc.localidad and biloc.provincia_codigo = biprov.provincia_codigo
+	JOIN [APROBANDO].[usuario] u on u.usuario_codigo = e.usuario
+	JOIN [APROBANDO].[BI_rango_etario] bire on 
+	DATEDIFF(YEAR,u.fecha_de_nacimiento,GETDATE()) >= bire.rango_menor 
+	and DATEDIFF(YEAR,u.fecha_de_nacimiento,GETDATE()) <= bire.rango_mayor
+	JOIN [APROBANDO].[tipo_paquete] tp on tp.tipo_paquete_codigo = e.tipo_paquete_codigo
+	JOIN [APROBANDO].[BI_tipo_paquete] bitp on bitp.tipo_paquete = tp.tipo_paquete
+	JOIN [APROBANDO].[estado_mensajeria] em on em.envio_msj_codigo = e.envio_msj_codigo
+	JOIN [APROBANDO].[tipo_estado_mensajeria] tem on tem.tipo_estado_mensajeria_codigo = em.tipo_estado
+	JOIN [APROBANDO].[BI_tipo_estado_mensajeria] bitem on bitem.tipo_estado = tem.tipo_estado
+	JOIN [APROBANDO].[medio_de_pago] mp on mp.medio_pago_codigo = e.medio_de_pago_codigo
+	JOIN [APROBANDO].[tipo_medio_pago] tmp on tmp.t_medio_pago_codigo = mp.tipo_medio_pago
+	JOIN [APROBANDO].[BI_tipo_medio_pago] bitmp on bitmp.tipo_medio_pago = tmp.tipo_medio_pago
+	)
 
 END
 GO
@@ -341,6 +432,18 @@ GO
 
 /*
 
+select * from [APROBANDO].[BI_hecho_envio_mensajeria]
+
+select * from [APROBANDO].[envio_mensajeria]
+join [APROBANDO].[direccion] on direccion_origen = direccion_codigo
+
+select * from [APROBANDO].[BI_hecho_pedido]
+
+select * from [APROBANDO].[cupon_canjeado]
+
+select * from [APROBANDO].[BI_hecho_pedido]
+
+select * from [APROBANDO].[BI_dia]
 
 select * from gd_esquema.Maestra
 
