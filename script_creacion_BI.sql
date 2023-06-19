@@ -48,23 +48,8 @@ ALTER PROCEDURE [APROBANDO].[CREATE_TABLES_BI]
 AS 
 BEGIN
 
-END
-GO
-
-EXEC [APROBANDO].[CREATE_TABLES_BI]
-GO
-
-
-IF NOT EXISTS(SELECT name FROM sys.procedures WHERE name='MIGRAR_BI')
-	EXEC('CREATE PROCEDURE [APROBANDO].[MIGRAR_BI] AS BEGIN SET NOCOUNT ON; END');
-GO
-
-ALTER PROCEDURE [APROBANDO].[MIGRAR_BI]
-AS
-BEGIN
-
 CREATE TABLE [APROBANDO].[BI_tiempo] (
-	fecha NVARCHAR(7) IDENTITY(1,1) PRIMARY KEY,
+	fecha INTEGER IDENTITY(1,1) PRIMARY KEY,
 	anio NVARCHAR(4),
 	mes NVARCHAR(2)
 	)
@@ -162,10 +147,10 @@ CREATE TABLE [APROBANDO].[BI_hecho_pedido](
 	dia_codigo INTEGER REFERENCES [APROBANDO].[BI_dia],    
 	rango_horario_codigo INTEGER REFERENCES [APROBANDO].[BI_rango_horario],
 	local_codigo INTEGER REFERENCES [APROBANDO].[BI_local],
-	fecha NVARCHAR(7)REFERENCES [APROBANDO].[BI_tiempo],
+	fecha INTEGER REFERENCES [APROBANDO].[BI_tiempo],
 	medio_pago_codigo INTEGER REFERENCES [APROBANDO].[BI_tipo_medio_pago],
 	rango_etario_codigo INTEGER REFERENCES [APROBANDO].[BI_rango_etario],
-	monto DECIMAL(8,2),
+	monto DECIMAL(18,2),
 	calificacion DECIMAL(18,0),
 	monto_cupones DECIMAL(18,0),
 	PRIMARY KEY(hecho_pedido_codigo, tipo_estado_codigo, dia_codigo, rango_horario_codigo, local_codigo, fecha, medio_pago_codigo, rango_etario_codigo)
@@ -174,11 +159,11 @@ CREATE TABLE [APROBANDO].[BI_hecho_pedido](
 
 CREATE TABLE [APROBANDO].[BI_hecho_envio](
 	hecho_envio_codigo INTEGER IDENTITY(1,1),
-	fecha NVARCHAR(7)REFERENCES [APROBANDO].[BI_tiempo],
+	fecha INTEGER REFERENCES [APROBANDO].[BI_tiempo],
 	tipo_movilidad_codigo INTEGER REFERENCES [APROBANDO].[BI_tipo_movilidad],
 	localidad_codigo INTEGER REFERENCES [APROBANDO].[BI_localidad],
 	rango_etario_codigo INTEGER REFERENCES [APROBANDO].[BI_rango_etario],
-	monto DECIMAL(8,2),
+	monto DECIMAL(18,2),
 	tiempo_entrega INTEGER,
 	PRIMARY KEY(hecho_envio_codigo, fecha, tipo_movilidad_codigo, localidad_codigo, rango_etario_codigo)
 	)
@@ -191,17 +176,17 @@ CREATE TABLE [APROBANDO].[BI_hecho_reclamo](
 	local_codigo INTEGER REFERENCES [APROBANDO].[BI_local],
 	tipo_reclamo_codigo INTEGER REFERENCES [APROBANDO].[BI_tipo_de_reclamo],
 	rango_etario_codigo INTEGER REFERENCES [APROBANDO].[BI_rango_etario],
-	fecha NVARCHAR(7)REFERENCES [APROBANDO].[BI_tiempo],
+	fecha INTEGER REFERENCES [APROBANDO].[BI_tiempo],
 	tipo_estado_codigo INTEGER REFERENCES [APROBANDO].[BI_tipo_estado_pedido],
 	tiempo_resolucion INTEGER,
-	monto_en_cupon DECIMAL(8,2),
+	monto_en_cupon DECIMAL(18,2),
 	PRIMARY KEY(hecho_reclamo_codigo, dia_codigo, rango_horario_codigo, local_codigo, tipo_reclamo_codigo, rango_etario_codigo, fecha, tipo_estado_codigo)
 	)
 
 
 CREATE TABLE [APROBANDO].[BI_hecho_envio_mensajeria](
 	hecho_envio_mensajeria_codigo INTEGER IDENTITY(1,1),
-	fecha NVARCHAR(7)REFERENCES [APROBANDO].[BI_tiempo],
+	fecha INTEGER REFERENCES [APROBANDO].[BI_tiempo],
 	rango_horario_codigo INTEGER REFERENCES [APROBANDO].[BI_rango_horario],
 	dia_codigo INTEGER REFERENCES [APROBANDO].[BI_dia],
 	tipo_movilidad_codigo INTEGER REFERENCES [APROBANDO].[BI_tipo_movilidad],
@@ -210,8 +195,8 @@ CREATE TABLE [APROBANDO].[BI_hecho_envio_mensajeria](
 	tipo_paquete_codigo INTEGER REFERENCES [APROBANDO].[BI_tipo_paquete],
 	tipo_estado_msj_codigo INTEGER REFERENCES [APROBANDO].[BI_tipo_estado_mensajeria],
 	medio_pago_codigo INTEGER REFERENCES [APROBANDO].[BI_tipo_medio_pago],
-	monto DECIMAL(8,2),
-	valor_asegurado DECIMAL(8,2),
+	monto DECIMAL(18,2),
+	valor_asegurado DECIMAL(18,2),
 	PRIMARY KEY(hecho_envio_mensajeria_codigo, fecha, rango_horario_codigo, dia_codigo, tipo_movilidad_codigo, localidad_codigo, rango_etario_codigo,
 	 tipo_paquete_codigo, tipo_estado_msj_codigo, medio_pago_codigo)
 	)
@@ -219,7 +204,67 @@ CREATE TABLE [APROBANDO].[BI_hecho_envio_mensajeria](
 END
 GO
 
-EXEC [APROBANDO].[MIGRAR_BI]
+EXEC [APROBANDO].[CREATE_TABLES_BI]
 GO
 
 
+IF NOT EXISTS(SELECT name FROM sys.procedures WHERE name='MIGRAR_BI')
+	EXEC('CREATE PROCEDURE [APROBANDO].[MIGRAR_BI] AS BEGIN SET NOCOUNT ON; END');
+GO
+
+ALTER PROCEDURE [APROBANDO].[MIGRAR_BI]
+AS
+BEGIN
+
+	--DIMESIONES:
+
+	-- BI_tiempo
+
+	INSERT INTO [APROBANDO].[BI_tiempo] (anio, mes)
+	(
+	SELECT DISTINCT YEAR(fecha_pedido), MONTH(fecha_pedido)
+	FROM [APROBANDO].[pedido]
+	UNION
+	SELECT DISTINCT YEAR(fecha_reclamo), MONTH(fecha_reclamo)
+	FROM [APROBANDO].[reclamo]
+	UNION 
+	SELECT DISTINCT YEAR(fecha_envio_msj), MONTH(fecha_envio_msj)
+	FROM [APROBANDO].[envio_mensajeria]
+	)
+
+	--BI_provincia
+
+	INSERT INTO [APROBANDO].[BI_provincia] (provincia)
+	(select provincia from [APROBANDO].[provincia])
+	
+	--BI_localidad
+
+	INSERT INTO [APROBANDO].[BI_localidad] (localidad, provincia_codigo)
+	(select localidad, provincia_codigo from [APROBANDO].[localidad])
+
+	--BI_tipo_movilidad
+	
+	INSERT INTO [APROBANDO].[BI_tipo_movilidad] (movilidad)
+	(select movilidad from [APROBANDO].[tipo_movilidad]) 
+
+
+	--BI_tipo_local
+
+	INSERT INTO [APROBANDO].[BI_tipo_local] (tipo_local)
+	(select tipo_local from [APROBANDO].[tipo_local])
+
+
+
+END
+GO
+
+EXEC [APROBANDO].[MIGRAR_BI]
+GO
+
+/*
+
+select * from [APROBANDO].[BI_provincia]
+
+select * from [APROBANDO].[BI_localidad]
+
+*/

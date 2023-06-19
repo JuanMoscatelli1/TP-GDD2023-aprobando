@@ -644,7 +644,7 @@ BEGIN
 		
 	INSERT INTO [APROBANDO].[envio_mensajeria] (nro_envio_msj,distancia_en_km,valor_asegurado,observaciones,precio_envio,
 		precio_seguro,propina,total,tiempo_estimado_entrega,fecha_hora_entrega,calificacion,usuario,tipo_paquete_codigo
-		,repartidor_codigo,medio_de_pago_codigo,direccion_origen,direccion_destino)
+		,repartidor_codigo,medio_de_pago_codigo,direccion_origen,direccion_destino,fecha_envio_msj)
 	SELECT DISTINCT ENVIO_MENSAJERIA_NRO, 
 	ENVIO_MENSAJERIA_KM, ENVIO_MENSAJERIA_VALOR_ASEGURADO, 
 	ENVIO_MENSAJERIA_OBSERV, ENVIO_MENSAJERIA_PRECIO_ENVIO, 
@@ -652,7 +652,7 @@ BEGIN
 	ENVIO_MENSAJERIA_TOTAL, ENVIO_MENSAJERIA_TIEMPO_ESTIMADO,
 	ENVIO_MENSAJERIA_FECHA_ENTREGA, ENVIO_MENSAJERIA_CALIFICACION,
 	u.usuario_codigo,tp.tipo_paquete_codigo,r.repartidor_codigo,
-	mp.medio_pago_codigo,dir1.direccion_codigo,dir2.direccion_codigo
+	mp.medio_pago_codigo,dir1.direccion_codigo,dir2.direccion_codigo,ENVIO_MENSAJERIA_FECHA
 	FROM [gd_esquema].[Maestra]
 	JOIN [APROBANDO].[usuario] u ON USUARIO_DNI = u.dni
 	JOIN [APROBANDO].[tipo_paquete] tp ON PAQUETE_TIPO = tp.tipo_paquete 
