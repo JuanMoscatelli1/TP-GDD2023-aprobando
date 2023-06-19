@@ -164,9 +164,11 @@ CREATE TABLE [APROBANDO].[BI_hecho_envio](
 	tipo_movilidad_codigo INTEGER REFERENCES [APROBANDO].[BI_tipo_movilidad],
 	localidad_codigo INTEGER REFERENCES [APROBANDO].[BI_localidad],
 	rango_etario_codigo INTEGER REFERENCES [APROBANDO].[BI_rango_etario],
+	dia_codigo INTEGER REFERENCES [APROBANDO].[BI_dia],
+	rango_horario_codigo INTEGER REFERENCES [APROBANDO].[BI_rango_horario],
 	monto DECIMAL(18,2),
 	tiempo_entrega INTEGER,
-	PRIMARY KEY(hecho_envio_codigo, fecha, tipo_movilidad_codigo, localidad_codigo, rango_etario_codigo)
+	PRIMARY KEY(hecho_envio_codigo, fecha, tipo_movilidad_codigo, localidad_codigo, rango_etario_codigo, dia_codigo, rango_horario_codigo)
 	)
 
 
@@ -198,6 +200,7 @@ CREATE TABLE [APROBANDO].[BI_hecho_envio_mensajeria](
 	medio_pago_codigo INTEGER REFERENCES [APROBANDO].[BI_tipo_medio_pago],
 	monto DECIMAL(18,2),
 	valor_asegurado DECIMAL(18,2),
+	tiempo_entrega INT,
 	PRIMARY KEY(hecho_envio_mensajeria_codigo, fecha, rango_horario_codigo, dia_codigo, tipo_movilidad_codigo, localidad_codigo, rango_etario_codigo,
 	 tipo_paquete_codigo, tipo_estado_msj_codigo, medio_pago_codigo)
 	)
@@ -381,11 +384,11 @@ BEGIN
 	INSERT INTO [APROBANDO].[BI_hecho_envio_mensajeria]
 	(fecha,rango_horario_codigo,dia_codigo,tipo_movilidad_codigo,
 	localidad_codigo,rango_etario_codigo,tipo_paquete_codigo,tipo_estado_msj_codigo,medio_pago_codigo,
-	monto,valor_asegurado)
+	monto,valor_asegurado, tiempo_entrega)
 
 	(select ti.fecha, birh.rango_id, bidia.dia_codigo, bitim.movilidad_codigo,
 			biloc.localidad_codigo, bire.rango_id, bitp.tipo_paquete_codigo,bitem.tipo_estado_mensajeria_codigo,bitmp.medio_pago_codigo, 
-			e.total,e.valor_asegurado  
+			e.total,e.valor_asegurado,DATEDIFF(minute, e.fecha_envio_msj,e.fecha_hora_entrega)  
 	
 	from [APROBANDO].[envio_mensajeria] e 
 	JOIN [APROBANDO].[BI_tiempo] ti on ti.anio = YEAR(e.fecha_envio_msj) and ti.mes = MONTH(e.fecha_envio_msj)
@@ -470,10 +473,10 @@ BEGIN
 
 	INSERT INTO [APROBANDO].[BI_hecho_envio] 
 	(fecha,tipo_movilidad_codigo,localidad_codigo,rango_etario_codigo,
-	monto,tiempo_entrega)
+	monto,tiempo_entrega,dia_codigo, rango_horario_codigo)
 	(
 	select ti.fecha, bitm.movilidad_codigo, biloc.localidad_codigo,bire.rango_id,
-	e.precio+e.propina, DATEDIFF(minute, p.fecha_pedido, p.fecha_entrga) 
+	e.precio+e.propina, DATEDIFF(minute, p.fecha_pedido, p.fecha_entrga), bidia.dia_codigo, birh.rango_id 
 	
 	from [APROBANDO].[envio] e
 	JOIN [APROBANDO].[pedido] p on	p.pedido_codigo = e.nro_pedido
@@ -490,7 +493,21 @@ BEGIN
 	JOIN [APROBANDO].[BI_rango_etario] bire on 
 	DATEDIFF(YEAR,u.fecha_de_nacimiento,GETDATE()) >= bire.rango_menor 
 	and DATEDIFF(YEAR,u.fecha_de_nacimiento,GETDATE()) <= bire.rango_mayor
+	JOIN [APROBANDO].[BI_dia] bidia on bidia.dia = 
+		case DATEPART(WEEKDAY,p.fecha_pedido)
+			WHEN 1 THEN 'Domingo'
+			WHEN 2 THEN 'Lunes'
+			WHEN 3 THEN 'Martes'
+			WHEN 4 THEN 'Miercoles'
+			WHEN 5 THEN 'Jueves'
+			WHEN 6 THEN 'Viernes'
+			WHEN 7 THEN 'Sabado'  
+		end
+	JOIN [APROBANDO].[BI_rango_horario] birh on
+	convert(time,p.fecha_pedido) <= birh.hora_final and 
+	convert(time,p.fecha_pedido) >= birh.hora_inicial
 	)
+
 
 END
 GO
@@ -540,7 +557,8 @@ GO
 --2
 /* Monto total no cobrado por cada local en función de los pedidos
 cancelados según el día de la semana y la franja horaria (cuentan como
-pedidos cancelados tanto los que cancela el usuario como el local).*/
+pedidos cancelados tanto los que cancela el usuario como el local).
+*/
 
 IF EXISTS(SELECT 1 FROM sys.views WHERE name='MONTO_NO_COBRADO' AND type='v')
 	DROP VIEW [APROBANDO].[MONTO_NO_COBRADO]
@@ -568,15 +586,107 @@ GO
 
 CREATE VIEW [APROBANDO].[VALOR_PROMEDIO_MENSUAL] AS
 	
-	(SELECT SUM(he.monto) as 'monto envios' ,t.mes, l.localidad 
+	(SELECT AVG(he.monto) as 'monto envios' ,t.mes,t.anio ,l.localidad 
 	from [APROBANDO].[BI_hecho_envio] he
 	JOIN [APROBANDO].[BI_tiempo] t on he.fecha = t.fecha
 	JOIN [APROBANDO].[BI_localidad] l on l.localidad_codigo = he.localidad_codigo
-	GROUP BY t.mes, l.localidad
+	GROUP BY t.mes,t.anio, l.localidad
 	)
 GO
 
+--4 
 
+/* Desvío promedio en tiempo de entrega según el tipo de movilidad, el día
+de la semana y la franja horaria.
+El desvío debe calcularse en minutos y representa la diferencia entre la
+fecha/hora en que se realizó el pedido y la fecha/hora que se entregó en
+comparación con los minutos de tiempo estimados.
+Este indicador debe tener en cuenta todos los envíos, es decir, sumar tanto
+los envíos de pedidos como los de mensajería.
+ */
+
+IF EXISTS(SELECT 1 FROM sys.views WHERE name='DESVIO_TIEMPO_ENTREGA' AND type='v')
+	DROP VIEW [APROBANDO].[DESVIO_TIEMPO_ENTREGA]
+GO
+
+CREATE VIEW [APROBANDO].[DESVIO_TIEMPO_ENTREGA] AS 
+ SELECT tipo_movilidad, dia_semana, rango_horario_inicial, rango_horario_final, AVG(tiempo_entrega) AS desvio_promedio_en_min 
+ from (
+	select tm.movilidad as tipo_movilidad, d.dia as dia_semana, rh.hora_inicial as rango_horario_inicial,
+			rh.hora_final as rango_horario_final, he.tiempo_entrega  
+	from [APROBANDO].[BI_hecho_envio] he
+	JOIN [APROBANDO].[BI_tipo_movilidad] tm on tm.movilidad_codigo = he.tipo_movilidad_codigo
+	JOIN [APROBANDO].[BI_dia] d on d.dia_codigo = he.dia_codigo
+	JOIN [APROBANDO].[BI_rango_horario] rh on rh.rango_id = he.rango_horario_codigo
+	UNION ALL
+	select tm.movilidad as tipo_movilidad, d.dia as dia_semana, rh.hora_inicial as rango_horario_inicial,
+			rh.hora_final as rango_horario_final, em.tiempo_entrega
+	FROM [APROBANDO].[BI_hecho_envio_mensajeria] em
+	JOIN [APROBANDO].[BI_tipo_movilidad] tm on tm.movilidad_codigo = em.tipo_movilidad_codigo
+	JOIN [APROBANDO].[BI_dia] d on d.dia_codigo = em.dia_codigo
+	JOIN [APROBANDO].[BI_rango_horario] rh on rh.rango_id = em.rango_horario_codigo
+ ) AS subquery
+ GROUP BY tipo_movilidad, dia_semana, rango_horario_inicial, rango_horario_final 
+GO
+
+--5
+/* Monto total de los cupones utilizados por mes en función del rango etario
+de los usuarios. */
+
+IF EXISTS(SELECT 1 FROM sys.views WHERE name='MONTO_TOTAL_CUPONES' AND type='v')
+	DROP VIEW [APROBANDO].[MONTO_TOTAL_CUPONES]
+GO
+
+CREATE VIEW [APROBANDO].[MONTO_TOTAL_CUPONES] AS 
+	SELECT SUM(p.monto_cupones) as 'total cupones',t.mes,t.anio,re.rango_menor,re.rango_mayor FROM [APROBANDO].[BI_hecho_pedido] p
+	JOIN [APROBANDO].[BI_tiempo] t on p.fecha = t.fecha
+	JOIN [APROBANDO].[BI_rango_etario] re on re.rango_id = p.rango_etario_codigo
+	GROUP BY t.mes,t.anio,re.rango_menor,re.rango_mayor
+GO
+
+--6 
+
+/* 
+ Promedio de calificación mensual por local
+*/
+
+IF EXISTS(SELECT 1 FROM sys.views WHERE name='CALIFICACION_MENSUAL' AND type='v')
+	DROP VIEW [APROBANDO].[CALIFICACION_MENSUAL]
+GO
+
+CREATE VIEW [APROBANDO].[CALIFICACION_MENSUAL] as 
+	SELECT AVG(p.calificacion) as 'promedio calificacion',t.mes,t.anio, l.nombre FROM [APROBANDO].[BI_hecho_pedido] p
+	JOIN [APROBANDO].[BI_tiempo] t on p.fecha = t.fecha
+	JOIN [APROBANDO].[BI_local] l on p.local_codigo = l.local_codigo 
+	GROUP BY t.mes,t.anio,l.nombre
+GO
+
+--7 
+
+/* Porcentaje de pedidos y mensajería entregados mensualmente según el
+rango etario de los repartidores y la localidad.
+Este indicador se debe tener en cuenta y sumar tanto los envíos de pedidos
+como los de mensajería.
+El porcentaje se calcula en función del total general de pedidos y envíos
+mensuales entregados. */
+
+--TODO
+
+--8 
+
+/* Promedio mensual del valor asegurado (valor declarado por el usuario) de
+los paquetes enviados a través del servicio de mensajería en función del
+tipo de paquete. */
+
+IF EXISTS(SELECT 1 FROM sys.views WHERE name='PROMEDIO_VALOR_ASEGURADO' AND type='v')
+	DROP VIEW [APROBANDO].[PROMEDIO_VALOR_ASEGURADO]
+GO
+
+CREATE VIEW [APROBANDO].[PROMEDIO_VALOR_ASEGURADO] AS 
+SELECT AVG(hm.valor_asegurado) as 'promedio val asegurado',t.mes,t.anio,tp.tipo_paquete FROM [APROBANDO].[BI_hecho_envio_mensajeria] hm
+JOIN [APROBANDO].[BI_tipo_paquete] tp on hm.tipo_paquete_codigo = tp.tipo_paquete_codigo
+JOIN [APROBANDO].[BI_tiempo] t on hm.fecha = t.fecha
+GROUP BY tp.tipo_paquete, t.anio,t.mes
 
 /* select vistas
 
@@ -586,13 +696,19 @@ GO
 
  select * from [APROBANDO].[VALOR_PROMEDIO_MENSUAL]
 
+ select * from [APROBANDO].[DESVIO_TIEMPO_ENTREGA]
+
+ select * from [APROBANDO].[MONTO_TOTAL_CUPONES]
+
+ select * from [APROBANDO].[CALIFICACION_MENSUAL]
+
 
 */
 
 /*
 select * from [APROBANDO].[reclamo]
 
-select * from [APROBANDO].[BI_hecho_envio]
+select * from [APROBANDO].[BI_hecho_envio_mensajeria]
 
 select * from [APROBANDO].[envio_mensajeria]
 join [APROBANDO].[direccion] on direccion_origen = direccion_codigo
