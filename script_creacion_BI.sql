@@ -168,9 +168,53 @@ CREATE TABLE [APROBANDO].[BI_hecho_pedido](
 	monto DECIMAL(8,2),
 	calificacion DECIMAL(18,0),
 	monto_cupones DECIMAL(18,0),
-	PRIMARY KEY(hecho_pedido_codigo, tipo_estado_codigo, dia_codigo, rango_horario_codigo, local_codigo,fecha, medio_pago_codigo, rango_etario_codigo)
+	PRIMARY KEY(hecho_pedido_codigo, tipo_estado_codigo, dia_codigo, rango_horario_codigo, local_codigo, fecha, medio_pago_codigo, rango_etario_codigo)
 	)
 
+
+CREATE TABLE [APROBANDO].[BI_hecho_envio](
+	hecho_envio_codigo INTEGER IDENTITY(1,1),
+	fecha NVARCHAR(7)REFERENCES [APROBANDO].[BI_tiempo],
+	tipo_movilidad_codigo INTEGER REFERENCES [APROBANDO].[BI_tipo_movilidad],
+	localidad_codigo INTEGER REFERENCES [APROBANDO].[BI_localidad],
+	rango_etario_codigo INTEGER REFERENCES [APROBANDO].[BI_rango_etario],
+	monto DECIMAL(8,2),
+	tiempo_entrega INTEGER,
+	PRIMARY KEY(hecho_envio_codigo, fecha, tipo_movilidad_codigo, localidad_codigo, rango_etario_codigo)
+	)
+
+
+CREATE TABLE [APROBANDO].[BI_hecho_reclamo](
+	hecho_reclamo_codigo INTEGER IDENTITY(1,1),
+	dia_codigo INTEGER REFERENCES [APROBANDO].[BI_dia],
+	rango_horario_codigo INTEGER REFERENCES [APROBANDO].[BI_rango_horario],
+	local_codigo INTEGER REFERENCES [APROBANDO].[BI_local],
+	tipo_reclamo_codigo INTEGER REFERENCES [APROBANDO].[BI_tipo_de_reclamo],
+	rango_etario_codigo INTEGER REFERENCES [APROBANDO].[BI_rango_etario],
+	fecha NVARCHAR(7)REFERENCES [APROBANDO].[BI_tiempo],
+	tipo_estado_codigo INTEGER REFERENCES [APROBANDO].[BI_tipo_estado_pedido],
+	tiempo_resolucion INTEGER,
+	monto_en_cupon DECIMAL(8,2),
+	PRIMARY KEY(hecho_reclamo_codigo, dia_codigo, rango_horario_codigo, local_codigo, tipo_reclamo_codigo, rango_etario_codigo, fecha, tipo_estado_codigo)
+	)
+
+
+CREATE TABLE [APROBANDO].[BI_hecho_envio_mensajeria](
+	hecho_envio_mensajeria_codigo INTEGER IDENTITY(1,1),
+	fecha NVARCHAR(7)REFERENCES [APROBANDO].[BI_tiempo],
+	rango_horario_codigo INTEGER REFERENCES [APROBANDO].[BI_rango_horario],
+	dia_codigo INTEGER REFERENCES [APROBANDO].[BI_dia],
+	tipo_movilidad_codigo INTEGER REFERENCES [APROBANDO].[BI_tipo_movilidad],
+	localidad_codigo INTEGER REFERENCES [APROBANDO].[BI_localidad],
+	rango_etario_codigo INTEGER REFERENCES [APROBANDO].[BI_rango_etario],
+	tipo_paquete_codigo INTEGER REFERENCES [APROBANDO].[BI_tipo_paquete],
+	tipo_estado_msj_codigo INTEGER REFERENCES [APROBANDO].[BI_tipo_estado_mensajeria],
+	medio_pago_codigo INTEGER REFERENCES [APROBANDO].[BI_tipo_medio_pago],
+	monto DECIMAL(8,2),
+	valor_asegurado DECIMAL(8,2),
+	PRIMARY KEY(hecho_envio_mensajeria_codigo, fecha, rango_horario_codigo, dia_codigo, tipo_movilidad_codigo, localidad_codigo, rango_etario_codigo,
+	 tipo_paquete_codigo, tipo_estado_msj_codigo, medio_pago_codigo)
+	)
 
 END
 GO
