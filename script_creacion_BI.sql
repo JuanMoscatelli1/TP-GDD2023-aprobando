@@ -84,7 +84,7 @@ CREATE TABLE [APROBANDO].[BI_categoria] (
 	)
 
 CREATE TABLE [APROBANDO].[BI_rango_etario] (
-	rango_id INTEGER PRIMARY KEY,
+	rango_id INTEGER IDENTITY (1,1) PRIMARY KEY,
 	rango NVARCHAR(50)
 	)
 
@@ -240,7 +240,9 @@ BEGIN
 	--BI_localidad
 
 	INSERT INTO [APROBANDO].[BI_localidad] (localidad, provincia_codigo)
-	(select localidad, provincia_codigo from [APROBANDO].[localidad])
+	(select loc.localidad, biprov.provincia_codigo from [APROBANDO].[localidad] loc
+	JOIN [APROBANDO].[provincia] prov on loc.provincia_codigo = prov.provincia_codigo
+	JOIN [APROBANDO].[BI_provincia] biprov on biprov.provincia = prov.provincia)
 
 	--BI_tipo_movilidad
 	
@@ -253,6 +255,54 @@ BEGIN
 	INSERT INTO [APROBANDO].[BI_tipo_local] (tipo_local)
 	(select tipo_local from [APROBANDO].[tipo_local])
 
+	--BI_tipo_estado_mensajeria
+
+	INSERT INTO [APROBANDO].[BI_tipo_estado_mensajeria] (tipo_estado)
+	(select tipo_estado from [APROBANDO].[tipo_estado_mensajeria])
+
+	--BI_tipo_paquete
+
+	INSERT INTO [APROBANDO].[BI_tipo_paquete] (ancho_max,largo_max,alto_max,peso_max,precio,tipo_paquete)
+	(select ancho_max,largo_max,alto_max,peso_max,precio,tipo_paquete from [APROBANDO].[tipo_paquete])
+
+	--BI_tipo_de_reclamo
+
+	INSERT INTO [APROBANDO].[BI_tipo_de_reclamo] (tipo_de_reclamo)
+	(select t.tipo_de_reclamo from [APROBANDO].[tipo_de_reclamo] t)
+
+	--BI_tipo_estado_reclamo
+
+	INSERT INTO [APROBANDO].[BI_tipo_estado_reclamo] (tipo_estado)
+	(select t.tipo_estado from [APROBANDO].[tipo_estado_reclamo] t)
+
+	--BI_tipo_estado_pedido
+
+	INSERT INTO [APROBANDO].[BI_tipo_estado_pedido] (tipo_estado_pedido)
+	(select t.tipo_estado_pedido from [APROBANDO].[tipo_estado_pedido] t)
+
+	--BI_dia
+
+	INSERT INTO [APROBANDO].[BI_dia] (dia)
+	(select d.dia from [APROBANDO].[dia] d)
+
+	--BI_tipo_medio_pago
+
+	INSERT INTO [APROBANDO].[BI_tipo_medio_pago] (tipo_medio_pago)
+	(select t.tipo_medio_pago from [APROBANDO].[tipo_medio_pago] t)
+
+	--BI_categoria (va a estar en null la categoria, no existe en la tabla maestra => no existe en las tablas de la entrega pasada)
+
+	INSERT INTO [APROBANDO].[BI_categoria] (categoria,tipo_local_codigo)
+	(select c.categoria,bitip.tipo_local_codigo from [APROBANDO].[categoria] c
+	JOIN [APROBANDO].[tipo_local] t on t.tipo_local_codigo = c.tipo_local_codigo
+	JOIN [APROBANDO].[BI_tipo_local] bitip on t.tipo_local = bitip.tipo_local)
+
+	--BI_rango_etario
+
+	INSERT INTO [APROBANDO].[BI_rango_etario] (rango)
+	values ('< a 25'),('25 - 35'),('35-55'),('>55')
+
+	--BI_
 
 
 END
@@ -263,8 +313,27 @@ GO
 
 /*
 
+select * from gd_esquema.Maestra
+
 select * from [APROBANDO].[BI_provincia]
 
 select * from [APROBANDO].[BI_localidad]
 
+select * from [APROBANDO].[BI_tipo_movilidad]
+
+select * from [APROBANDO].[BI_tipo_local]
+
+select * from [APROBANDO].[BI_tipo_estado_mensajeria]
+
+select * from [APROBANDO].[BI_tipo_paquete]
+
+select * from [APROBANDO].[BI_tipo_de_reclamo]
+
+select * from [APROBANDO].[BI_tipo_estado_reclamo]
+
+select * from [APROBANDO].[categoria]
+
+select * from [APROBANDO].[BI_categoria]
+
+select * from [APROBANDO].[BI_rango_etario]
 */
