@@ -498,6 +498,97 @@ GO
 EXEC [APROBANDO].[MIGRAR_BI]
 GO
 
+
+--VISTAS
+
+--1 
+/* Día de la semana y franja horaria con mayor cantidad de pedidos según la
+localidad y categoría del local, para cada mes de cada año */
+
+--lo hago con tipo de local xq categoria no hay
+
+IF EXISTS(SELECT 1 FROM sys.views WHERE name='CANTIDAD_PEDIDOS' AND type='v')
+	DROP VIEW [APROBANDO].[CANTIDAD_PEDIDOS]
+GO
+
+CREATE VIEW [APROBANDO].[CANTIDAD_PEDIDOS] AS
+SELECT *
+FROM (
+    SELECT
+        ROW_NUMBER() OVER (PARTITION BY t.mes, t.anio, l.localidad, tl.tipo_local
+                           ORDER BY COUNT(*) DESC) AS rn,
+        d.dia,
+        r.hora_inicial,
+		r.hora_final,
+        l.localidad,
+        tl.tipo_local,
+        t.mes,
+        t.anio,
+        COUNT(*) AS 'cantidad pedidos'
+    FROM [APROBANDO].[BI_hecho_pedido] p
+	JOIN [APROBANDO].[BI_rango_horario] r on r.rango_id = p.rango_horario_codigo 
+	JOIN [APROBANDO].[BI_dia] d on d.dia_codigo = p.dia_codigo
+	JOIN [APROBANDO].[BI_tiempo] t on t.fecha = p.fecha
+    JOIN [APROBANDO].[BI_local] lo ON p.local_codigo = lo.local_codigo
+	JOIN [APROBANDO].[BI_tipo_local] tl ON lo.tipo_local_codigo = tl.tipo_local_codigo
+	JOIN [APROBANDO].[BI_localidad] l ON l.localidad_codigo= lo.localidad_codigo
+    GROUP BY t.anio,t.mes, d.dia,r.hora_inicial,r.hora_final, l.localidad, tl.tipo_local
+) AS subquery
+WHERE rn = 1;
+GO
+
+--2
+/* Monto total no cobrado por cada local en función de los pedidos
+cancelados según el día de la semana y la franja horaria (cuentan como
+pedidos cancelados tanto los que cancela el usuario como el local).*/
+
+IF EXISTS(SELECT 1 FROM sys.views WHERE name='MONTO_NO_COBRADO' AND type='v')
+	DROP VIEW [APROBANDO].[MONTO_NO_COBRADO]
+GO
+
+CREATE VIEW [APROBANDO].[MONTO_NO_COBRADO] AS
+
+	(SELECT SUM(p.monto) as 'monto no cobrado',l.nombre,d.dia,rh.hora_inicial,rh.hora_final from [APROBANDO].[BI_hecho_pedido] p
+	JOIN [APROBANDO].[BI_local] l on l.local_codigo = p.local_codigo
+	JOIN [APROBANDO].[BI_dia] d on d.dia_codigo = p.dia_codigo
+	JOIN [APROBANDO].[BI_rango_horario] rh on rh.rango_id = p.rango_horario_codigo
+	WHERE p.tipo_estado_codigo= 2
+	GROUP BY l.nombre, d.dia, rh.hora_inicial,rh.hora_final)
+GO
+
+--3
+/* 
+Valor promedio mensual que tienen los envíos de pedidos en cada
+localidad.	
+*/
+
+IF EXISTS(SELECT 1 FROM sys.views WHERE name='VALOR_PROMEDIO_MENSUAL' AND type='v')
+	DROP VIEW [APROBANDO].[VALOR_PROMEDIO_MENSUAL]
+GO
+
+CREATE VIEW [APROBANDO].[VALOR_PROMEDIO_MENSUAL] AS
+	
+	(SELECT SUM(he.monto) as 'monto envios' ,t.mes, l.localidad 
+	from [APROBANDO].[BI_hecho_envio] he
+	JOIN [APROBANDO].[BI_tiempo] t on he.fecha = t.fecha
+	JOIN [APROBANDO].[BI_localidad] l on l.localidad_codigo = he.localidad_codigo
+	GROUP BY t.mes, l.localidad
+	)
+GO
+
+
+
+/* select vistas
+
+ select * from [APROBANDO].[CANTIDAD_PEDIDOS]
+
+ select * from [APROBANDO].[MONTO_NO_COBRADO]
+
+ select * from [APROBANDO].[VALOR_PROMEDIO_MENSUAL]
+
+
+*/
+
 /*
 select * from [APROBANDO].[reclamo]
 
