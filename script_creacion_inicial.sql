@@ -68,6 +68,7 @@ CREATE TABLE [APROBANDO].[direccion](
 
 	CREATE TABLE [APROBANDO].[producto] (
 		producto_codigo INTEGER IDENTITY(1,1) PRIMARY KEY,
+		producto_id NVARCHAR(50),
 		nombre NVARCHAR(50),
 		descripcion NVARCHAR(50)
 	);
@@ -181,7 +182,8 @@ CREATE TABLE [APROBANDO].[local] (
 		observaciones VARCHAR(255),
 		tiempo_estimado_entrega DECIMAL(18,2),
 		fecha_entrga DATETIME,
-		calificacion DECIMAL(18,0)
+		calificacion DECIMAL(18,0),
+		total_cupones DECIMAL(18,2)
 	);		
 
 CREATE TABLE [APROBANDO].[estado_pedido] (
@@ -383,6 +385,7 @@ BEGIN
 
 	--localidad
 	
+
 	INSERT INTO [APROBANDO].[localidad] (localidad,provincia_codigo)
 		SELECT DISTINCT ENVIO_MENSAJERIA_LOCALIDAD,provincia_codigo
 		FROM [gd_esquema].[Maestra] join [APROBANDO].provincia
@@ -403,13 +406,15 @@ BEGIN
 
 	INSERT INTO [APROBANDO].[direccion] (direccion,localidad_codigo)
 	SELECT DISTINCT DIRECCION_USUARIO_DIRECCION, localidad_codigo
-	FROM [gd_esquema].[Maestra] JOIN [APROBANDO].[localidad] 
-	ON DIRECCION_USUARIO_LOCALIDAD = localidad
+	FROM [gd_esquema].[Maestra] 
+	JOIN [APROBANDO].[provincia] p on p.provincia = DIRECCION_USUARIO_PROVINCIA 
+	JOIN [APROBANDO].[localidad] l ON DIRECCION_USUARIO_LOCALIDAD = l.localidad and l.provincia_codigo = p.provincia_codigo
 	WHERE DIRECCION_USUARIO_DIRECCION IS NOT NULL
 	UNION
 	SELECT DISTINCT LOCAL_DIRECCION, localidad_codigo
-	FROM [gd_esquema].[Maestra] JOIN [APROBANDO].[localidad] 
-	ON LOCAL_LOCALIDAD = localidad
+	FROM [gd_esquema].[Maestra] 
+	JOIN [APROBANDO].[provincia] p on p.provincia = LOCAL_PROVINCIA
+	JOIN [APROBANDO].[localidad] l ON LOCAL_LOCALIDAD = l.localidad and l.provincia_codigo = p.provincia_codigo 
 	WHERE LOCAL_DIRECCION IS NOT NULL
 	UNION 
 	SELECT DISTINCT OPERADOR_RECLAMO_DIRECCION, NULL
@@ -421,13 +426,16 @@ BEGIN
 	WHERE REPARTIDOR_DIRECION IS NOT NULL
 	UNION
 	SELECT DISTINCT ENVIO_MENSAJERIA_DIR_DEST,localidad_codigo
-	FROM [gd_esquema].[Maestra] JOIN [APROBANDO].[localidad] 
-	ON ENVIO_MENSAJERIA_LOCALIDAD = localidad
+	FROM [gd_esquema].[Maestra] 
+	JOIN [APROBANDO].[provincia] p on p.provincia = ENVIO_MENSAJERIA_PROVINCIA
+	JOIN [APROBANDO].[localidad] l 
+	ON ENVIO_MENSAJERIA_LOCALIDAD = l.localidad AND l.provincia_codigo = p.provincia_codigo
 	WHERE ENVIO_MENSAJERIA_DIR_DEST IS NOT NULL
 	UNION
 	SELECT DISTINCT ENVIO_MENSAJERIA_DIR_ORIG,localidad_codigo
-	FROM [gd_esquema].[Maestra] JOIN [APROBANDO].[localidad] 
-	ON ENVIO_MENSAJERIA_LOCALIDAD = localidad
+	FROM [gd_esquema].[Maestra] 
+	JOIN [APROBANDO].[provincia] p on p.provincia = ENVIO_MENSAJERIA_PROVINCIA
+	JOIN [APROBANDO].[localidad] l ON ENVIO_MENSAJERIA_LOCALIDAD = l.localidad and l.provincia_codigo = p.provincia_codigo
 	WHERE ENVIO_MENSAJERIA_DIR_ORIG IS NOT NULL
 
 	--usuario
@@ -449,7 +457,9 @@ BEGIN
 
 	INSERT INTO [APROBANDO].[direccion_por_usuario] (direccion_codigo,usuario_codigo,tipo_direccion)
 	SELECT DISTINCT d.direccion_codigo,u.usuario_codigo,DIRECCION_USUARIO_NOMBRE
-	FROM [gd_esquema].[Maestra] JOIN [APROBANDO].[localidad] l on DIRECCION_USUARIO_LOCALIDAD = l.localidad
+	FROM [gd_esquema].[Maestra] 
+	JOIN [APROBANDO].[provincia] p on DIRECCION_USUARIO_PROVINCIA = p.provincia
+	JOIN [APROBANDO].[localidad] l on DIRECCION_USUARIO_LOCALIDAD = l.localidad and p.provincia_codigo = l.provincia_codigo 
 	JOIN [APROBANDO].[direccion] d on DIRECCION_USUARIO_DIRECCION = d.direccion and d.localidad_codigo = l.localidad_codigo
 	JOIN [APROBANDO].[usuario] u on u.dni = USUARIO_DNI
 	WHERE DIRECCION_USUARIO_NOMBRE IS NOT NULL
@@ -490,8 +500,11 @@ BEGIN
 
 	INSERT INTO [APROBANDO].[localidad_por_repartidor](localidad_codigo,repartidor_codigo,activa)
 	SELECT DISTINCT l.localidad_codigo, r.repartidor_codigo, NULL
-	FROM [gd_esquema].[Maestra] JOIN [APROBANDO].[usuario] ur on ur.dni = REPARTIDOR_DNI JOIN repartidor r on r.usuario_codigo = ur.usuario_codigo
-	JOIN [APROBANDO].[localidad] l on LOCAL_LOCALIDAD = l.localidad
+	FROM [gd_esquema].[Maestra] JOIN 
+	[APROBANDO].[usuario] ur on ur.dni = REPARTIDOR_DNI
+	JOIN repartidor r on r.usuario_codigo = ur.usuario_codigo
+	JOIN [APROBANDO].[provincia] p on p.provincia = LOCAL_PROVINCIA
+	JOIN [APROBANDO].[localidad] l on LOCAL_LOCALIDAD = l.localidad and l.provincia_codigo = p.provincia_codigo
 	WHERE REPARTIDOR_DNI IS NOT NULL AND LOCAL_LOCALIDAD IS NOT NULL
 
 	-- tipo cupon 
@@ -603,8 +616,10 @@ BEGIN
 
 	INSERT INTO [APROBANDO].[local] (categoria, direccion, nombre)
 	SELECT DISTINCT c.categoria_codigo, d.direccion_codigo, LOCAL_NOMBRE
-	FROM [gd_esquema].[Maestra] JOIN [APROBANDO].[direccion] d ON LOCAL_DIRECCION = d.direccion
-	JOIN [APROBANDO].[localidad] l on l.localidad_codigo = d.localidad_codigo
+	FROM [gd_esquema].[Maestra] 
+	JOIN [APROBANDO].[provincia] p on p.provincia = LOCAL_PROVINCIA
+	JOIN [APROBANDO].[localidad] l on l.localidad = LOCAL_LOCALIDAD and l.provincia_codigo = p.provincia_codigo
+	JOIN [APROBANDO].[direccion] d ON LOCAL_DIRECCION = d.direccion and d.localidad_codigo = l.localidad_codigo
 	JOIN [APROBANDO].[tipo_local] tl on LOCAL_TIPO = tl.tipo_local
 	JOIN [APROBANDO].[categoria] c on c.tipo_local_codigo = tl.tipo_local_codigo
 	WHERE LOCAL_DIRECCION IS NOT NULL
@@ -620,8 +635,8 @@ BEGIN
 
 	-- producto 
 
-	INSERT INTO [APROBANDO].[producto] (nombre, descripcion)
-	SELECT DISTINCT PRODUCTO_LOCAL_NOMBRE, PRODUCTO_LOCAL_DESCRIPCION 
+	INSERT INTO [APROBANDO].[producto] (nombre, descripcion, producto_id)
+	SELECT DISTINCT PRODUCTO_LOCAL_NOMBRE, PRODUCTO_LOCAL_DESCRIPCION, PRODUCTO_LOCAL_CODIGO 
 	FROM [gd_esquema].[Maestra]
 	WHERE PRODUCTO_LOCAL_NOMBRE IS NOT NULL
 
@@ -629,7 +644,11 @@ BEGIN
 
 	INSERT INTO [APROBANDO].[producto_local] (local_codigo, producto_codigo, precio_en_local)
 	SELECT DISTINCT l.local_codigo, p.producto_codigo, PRODUCTO_LOCAL_PRECIO
-	FROM [gd_esquema].[Maestra] JOIN [APROBANDO].[local] l ON LOCAL_NOMBRE = l.nombre
+	FROM [gd_esquema].[Maestra] 
+	JOIN [APROBANDO].[provincia] prov ON LOCAL_PROVINCIA = prov.provincia
+	JOIN [APROBANDO].[localidad] loc on loc.localidad = LOCAL_LOCALIDAD and loc.provincia_codigo = prov.provincia_codigo
+	JOIN [APROBANDO].[direccion] dir on dir.direccion = LOCAL_DIRECCION and dir.localidad_codigo = loc.localidad_codigo
+	JOIN [APROBANDO].[local] l ON LOCAL_NOMBRE = l.nombre and l.direccion = dir.direccion_codigo
 	JOIN [APROBANDO].[producto] p ON PRODUCTO_LOCAL_NOMBRE = p.nombre
 	WHERE LOCAL_NOMBRE IS NOT NULL AND PRODUCTO_LOCAL_NOMBRE IS NOT NULL
 
@@ -661,7 +680,8 @@ BEGIN
 	JOIN [APROBANDO].[tipo_medio_pago] tmp ON tmp.tipo_medio_pago = MEDIO_PAGO_TIPO
 	JOIN [APROBANDO].[tarjeta] tar ON tar.numero = MEDIO_PAGO_NRO_TARJETA
 	JOIN [APROBANDO].[medio_de_pago] mp ON mp.tipo_medio_pago + u.usuario_codigo + tar.tarjeta_codigo = tmp.t_medio_pago_codigo + mp.usuario_codigo + mp.tarjeta_codigo
-	JOIN [APROBANDO].[localidad] loc1 ON ENVIO_MENSAJERIA_LOCALIDAD = loc1.localidad
+	JOIN [APROBANDO].[provincia] prov on prov.provincia = ENVIO_MENSAJERIA_PROVINCIA
+	JOIN [APROBANDO].[localidad] loc1 ON ENVIO_MENSAJERIA_LOCALIDAD = loc1.localidad and prov.provincia_codigo = loc1.provincia_codigo
 	JOIN [APROBANDO].[direccion] dir1 ON dir1.direccion = ENVIO_MENSAJERIA_DIR_ORIG AND dir1.localidad_codigo = loc1.localidad_codigo
 	JOIN [APROBANDO].[direccion] dir2 ON dir2.direccion = ENVIO_MENSAJERIA_DIR_DEST AND dir2.localidad_codigo = loc1.localidad_codigo
 	WHERE USUARIO_DNI IS NOT NULL AND PAQUETE_TIPO IS NOT NULL AND REPARTIDOR_DNI IS NOT NULL AND MEDIO_PAGO_TIPO IS NOT NULL 
@@ -675,15 +695,18 @@ BEGIN
 	JOIN [APROBANDO].[envio_mensajeria] m ON ENVIO_MENSAJERIA_NRO = m.nro_envio_msj
 	WHERE ENVIO_MENSAJERIA_ESTADO IS NOT NULL AND ENVIO_MENSAJERIA_NRO IS NOT NULL
 
-	-- pedido 
-	
+	-- pedido 	
+
 	INSERT INTO [APROBANDO].[pedido] (nro_pedido,usuario_codigo, local_codigo, medio_de_pago, fecha_pedido, tarifa_delivery, total, observaciones,
-	tiempo_estimado_entrega, fecha_entrga, calificacion)
+	tiempo_estimado_entrega, fecha_entrga, calificacion, total_cupones)
 	SELECT DISTINCT PEDIDO_NRO,u.usuario_codigo, l.local_codigo, mp.medio_pago_codigo, PEDIDO_FECHA, PEDIDO_TARIFA_SERVICIO,
 	PEDIDO_TOTAL_SERVICIO + PEDIDO_TOTAL_PRODUCTOS + PEDIDO_PRECIO_ENVIO + PEDIDO_PROPINA - PEDIDO_TOTAL_CUPONES, PEDIDO_OBSERV,
-	PEDIDO_TIEMPO_ESTIMADO_ENTREGA, PEDIDO_FECHA_ENTREGA, PEDIDO_CALIFICACION
+	PEDIDO_TIEMPO_ESTIMADO_ENTREGA, PEDIDO_FECHA_ENTREGA, PEDIDO_CALIFICACION, PEDIDO_TOTAL_CUPONES
 	FROM [gd_esquema].[Maestra] JOIN [APROBANDO].[usuario] u ON USUARIO_DNI = u.dni
-	JOIN [APROBANDO].[local] l ON LOCAL_NOMBRE = l.nombre
+	JOIN [APROBANDO].[provincia] prov ON LOCAL_PROVINCIA = prov.provincia
+	JOIN [APROBANDO].[localidad] loc on loc.localidad = LOCAL_LOCALIDAD and loc.provincia_codigo = prov.provincia_codigo
+	JOIN [APROBANDO].[direccion] dir on dir.direccion = LOCAL_DIRECCION and dir.localidad_codigo = loc.localidad_codigo
+	JOIN [APROBANDO].[local] l ON LOCAL_NOMBRE = l.nombre and dir.direccion_codigo = l.direccion
 	JOIN [APROBANDO].[tipo_medio_pago] tmp ON MEDIO_PAGO_TIPO = tmp.tipo_medio_pago
 	JOIN [APROBANDO].[tarjeta] tarjeta ON MEDIO_PAGO_NRO_TARJETA = tarjeta.numero
 	JOIN [APROBANDO].[medio_de_pago] mp ON tmp.t_medio_pago_codigo = mp.tipo_medio_pago AND mp.tarjeta_codigo = tarjeta.tarjeta_codigo 
@@ -695,7 +718,10 @@ BEGIN
 	SELECT DISTINCT p.producto_codigo, l.local_codigo, pe.pedido_codigo, 
 	SUM(PRODUCTO_CANTIDAD), PRODUCTO_LOCAL_PRECIO, PEDIDO_TOTAL_PRODUCTOS
 	FROM [gd_esquema].[Maestra] JOIN [APROBANDO].[producto] p ON PRODUCTO_LOCAL_NOMBRE = p.nombre
-	JOIN [APROBANDO].[local] l ON LOCAL_NOMBRE = l.nombre
+	JOIN [APROBANDO].[provincia] prov ON LOCAL_PROVINCIA = prov.provincia
+	JOIN [APROBANDO].[localidad] loc on loc.localidad = LOCAL_LOCALIDAD and loc.provincia_codigo = prov.provincia_codigo
+	JOIN [APROBANDO].[direccion] dir on dir.direccion = LOCAL_DIRECCION and dir.localidad_codigo = loc.localidad_codigo
+	JOIN [APROBANDO].[local] l ON LOCAL_NOMBRE = l.nombre and dir.direccion_codigo = l.direccion
 	JOIN [APROBANDO].[pedido] pe ON PEDIDO_NRO = pe.nro_pedido
 	WHERE PRODUCTO_LOCAL_CODIGO IS NOT NULL AND LOCAL_NOMBRE IS NOT NULL AND PEDIDO_NRO IS NOT NULL
 	GROUP BY p.producto_codigo, l.local_codigo, pe.pedido_codigo, PRODUCTO_LOCAL_PRECIO, PEDIDO_TOTAL_PRODUCTOS
@@ -720,14 +746,15 @@ BEGIN
 
 	-- envio REVISAR DNI REPARTIDOR
 
+
 	INSERT INTO [APROBANDO].[envio] (direccion, precio, propina, repartidor_codigo, nro_pedido)
 	SELECT DISTINCT d.direccion_codigo, PEDIDO_PRECIO_ENVIO, PEDIDO_PROPINA, rep.repartidor_codigo, p.pedido_codigo
 	FROM [gd_esquema].[Maestra] 
 	JOIN [APROBANDO].[usuario] u ON REPARTIDOR_DNI = u.dni
 	JOIN [APROBANDO].[repartidor] rep ON rep.usuario_codigo = u.usuario_codigo
-	JOIN [APROBANDO].[local] lo on LOCAL_NOMBRE = lo.nombre
-	JOIN [APROBANDO].[pedido] p ON PEDIDO_NRO = p.nro_pedido AND lo.local_codigo = p.local_codigo
-	JOIN [APROBANDO].[localidad] l ON l.localidad = DIRECCION_USUARIO_LOCALIDAD
+	JOIN [APROBANDO].[pedido] p ON PEDIDO_NRO = p.nro_pedido
+	JOIN [APROBANDO].[provincia] prov on prov.provincia = DIRECCION_USUARIO_PROVINCIA 
+	JOIN [APROBANDO].[localidad] l ON l.localidad = DIRECCION_USUARIO_LOCALIDAD and l.provincia_codigo = prov.provincia_codigo
 	JOIN [APROBANDO].[direccion] d ON d.direccion = DIRECCION_USUARIO_DIRECCION AND d.localidad_codigo = l.localidad_codigo
 	WHERE DIRECCION_USUARIO_DIRECCION IS NOT NULL AND REPARTIDOR_DNI IS NOT NULL AND PEDIDO_NRO IS NOT NULL
 
@@ -762,4 +789,3 @@ GO
 
 EXEC [APROBANDO].[MIGRAR]
 GO	
-
